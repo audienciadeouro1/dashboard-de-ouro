@@ -46,7 +46,12 @@ export interface AdRow {
   adSetName: string;
   adName: string;
   date: string;
+  endDate: string;
   objective: string;
+  delivery: string;
+  budget: number;
+  budgetType: string;
+  attribution: string;
   spend: number;
   impressions: number;
   reach: number;
@@ -62,6 +67,7 @@ export interface AdRow {
   purchases: number;
   cpa: number;
   conversionValue: number;
+  averageConversionValue: number;
   roas: number;
   conversations: number;
   costPerConversation: number;
@@ -75,6 +81,8 @@ export interface AdRow {
   reactions: number;
   comments: number;
   shares: number;
+  // Cópia dos dados originais para não perder nada
+  rawData: Record<string, string>;
 }
 
 export interface ParsedDataset {

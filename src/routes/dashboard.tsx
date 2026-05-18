@@ -42,6 +42,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Brush,
 } from "recharts";
 
 import { BrandHeader } from "@/components/BrandHeader";
@@ -58,14 +59,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { addDays, format, isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Calendar as CalendarIcon, Calendar } from "lucide-react"; // Renomeando lucide icon
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"; // Shadcn component
+
 import { getData, subscribe, setConfig } from "@/lib/store";
-import { aggregate, timeSeries, totals as computeTotals } from "@/lib/csv/aggregate";
+import { aggregate, timeSeries, totals as computeTotals, parseDate } from "@/lib/csv/aggregate";
 import { diagnoseCampaigns, diagnoseAccount } from "@/lib/csv/diagnostics";
 import { fmtBRL, fmtNum, fmtPct, fmtCompact } from "@/lib/csv/format";
 import type { AdRow, AnalysisMode } from "@/lib/csv/types";
 import type { CanonicalKey } from "@/lib/csv/normalize";
 import { cn } from "@/lib/utils";
-import { Plus, Trash2, Check, ChevronRight, PlusCircle, Hash } from "lucide-react";
+import { Plus, Trash2, Check, ChevronRight, PlusCircle, Hash, ShieldCheck } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -122,8 +128,13 @@ const METRIC_CONFIGS: Record<
     icon: <TrendingUp className="w-4 h-4" />,
     formatter: fmtBRL,
   },
+  averageConversionValue: {
+    label: "Valor médio (Meta)",
+    icon: <DollarSign className="w-4 h-4" />,
+    formatter: fmtBRL,
+  },
   roas: {
-    label: "ROAS",
+    label: "ROAS (Meta)",
     icon: <Award className="w-4 h-4" />,
     formatter: (v) => `${fmtNum(v, 2)}x`,
   },
@@ -169,8 +180,25 @@ const METRIC_CONFIGS: Record<
   campaignName: { label: "Nome", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
   adSetName: { label: "Conjunto", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
   adName: { label: "Anúncio", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  date: { label: "Data", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  date: { label: "Data início", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  endDate: { label: "Término", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
   objective: { label: "Objetivo", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  delivery: {
+    label: "Veiculação",
+    icon: <RefreshCw className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
+  budget: { label: "Orçamento", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
+  budgetType: {
+    label: "Tipo Orçamento",
+    icon: <Hash className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
+  attribution: {
+    label: "Atribuição",
+    icon: <ShieldCheck className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
 };
 
 function useStore() {
@@ -194,9 +222,63 @@ function DashboardPage() {
   return <DashboardContent />;
 }
 
+function DateRangePicker({
+  date,
+  setDate,
+}: {
+  date: { from?: Date; to?: Date } | undefined;
+  setDate: (date: { from?: Date; to?: Date } | undefined) => void;
+}) {
+  return (
+    <div className="grid gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            id="date"
+            variant={"outline"}
+            className={cn(
+              "w-[260px] justify-start text-left font-normal bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)] hover:bg-[oklch(0.83_0.16_88_/_0.1)]",
+              !date && "text-muted-foreground",
+            )}
+          >
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {date?.from ? (
+              date.to ? (
+                <>
+                  {format(date.from, "dd/MM/yy", { locale: ptBR })} -{" "}
+                  {format(date.to, "dd/MM/yy", { locale: ptBR })}
+                </>
+              ) : (
+                format(date.from, "dd/MM/yy", { locale: ptBR })
+              )
+            ) : (
+              <span>Filtrar por data</span>
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-auto p-0 bg-[oklch(0.12_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
+          align="start"
+        >
+          <CalendarComponent
+            initialFocus
+            mode="range"
+            defaultMonth={date?.from}
+            selected={date}
+            onSelect={setDate}
+            numberOfMonths={2}
+            locale={ptBR}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const { dataset, config } = useStore();
 
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>();
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
   const [adSetFilter, setAdSetFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -215,6 +297,17 @@ function DashboardContent() {
   const filteredRows: AdRow[] = useMemo(() => {
     if (!dataset) return [];
     return dataset.rows.filter((r) => {
+      // Filtro de Data
+      if (dateRange?.from) {
+        const rowDate = parseDate(r.date);
+        if (rowDate === 0) return false;
+
+        const from = startOfDay(dateRange.from).getTime();
+        const to = dateRange.to ? endOfDay(dateRange.to).getTime() : from;
+
+        if (rowDate < from || rowDate > to) return false;
+      }
+
       if (campaignFilter !== "all" && r.campaignName !== campaignFilter) return false;
       if (adSetFilter !== "all" && r.adSetName !== adSetFilter) return false;
       if (search) {
@@ -227,7 +320,7 @@ function DashboardContent() {
       }
       return true;
     });
-  }, [dataset, campaignFilter, adSetFilter, search]);
+  }, [dataset, dateRange, campaignFilter, adSetFilter, search]);
 
   const totals = useMemo(() => computeTotals(filteredRows), [filteredRows]);
   const byCampaign = useMemo(() => aggregate(filteredRows, "campaignName"), [filteredRows]);
@@ -305,6 +398,7 @@ function DashboardContent() {
               className="pl-9 bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
             />
           </div>
+          <DateRangePicker date={dateRange} setDate={setDateRange} />
           <Select value={campaignFilter} onValueChange={setCampaignFilter}>
             <SelectTrigger className="w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
               <SelectValue placeholder="Campanha" />
@@ -365,6 +459,7 @@ function DashboardContent() {
               diagnosed={diagnosed}
               mode={config.mode}
               hasDate={dataset.hasDate}
+              byCampaign={byCampaign}
             />
           </TabsContent>
           <TabsContent value="campaigns">
@@ -425,7 +520,12 @@ interface KpiDef {
   key?: CanonicalKey;
 }
 
-function getKpis(totals: Totals, mode: AnalysisMode, customKpis: CanonicalKey[] = []): KpiDef[] {
+function getKpis(
+  totals: Totals,
+  mode: AnalysisMode,
+  customKpis: CanonicalKey[] = [],
+  byCampaign: Aggregated[] = [],
+): KpiDef[] {
   const base: KpiDef[] = [
     {
       label: "Investimento",
@@ -693,10 +793,15 @@ function getKpis(totals: Totals, mode: AnalysisMode, customKpis: CanonicalKey[] 
     if (finalKpis.some((item) => item.key === k)) continue;
     const conf = METRIC_CONFIGS[k];
     if (conf) {
-      const val = (totals as unknown as Record<string, number>)[k] || 0;
+      // Tenta pegar do total (numérico) ou da primeira linha disponível (texto/metadata)
+      const numericVal = (totals as unknown as Record<string, number>)[k];
+      const stringVal = (byCampaign[0] as unknown as Record<string, string>)[k];
+
+      const val = numericVal !== undefined && numericVal !== 0 ? numericVal : stringVal;
+
       finalKpis.push({
         label: conf.label,
-        value: conf.formatter(val),
+        value: typeof val === "number" ? conf.formatter(val) : String(val || "—"),
         icon: conf.icon,
         key: k,
       });
@@ -716,9 +821,24 @@ interface OverviewProps {
   hasDate: boolean;
 }
 
-function OverviewTab({ totals, series, diagnosed, mode, hasDate }: OverviewProps) {
+function OverviewTab({
+  totals,
+  series,
+  diagnosed,
+  mode,
+  hasDate,
+  byCampaign,
+}: OverviewProps & { byCampaign: Aggregated[] }) {
   const { config, dataset } = useStore();
-  const kpis = getKpis(totals, mode, config?.customKpis);
+  const [chartMetric, setChartMetric] = useState<CanonicalKey>(
+    mode === "sales" ? "spend" : "conversations",
+  );
+
+  // Reseta métrica ao mudar de modo
+  useEffect(() => {
+    setChartMetric(mode === "sales" ? "spend" : "conversations");
+  }, [mode]);
+  const kpis = getKpis(totals, mode, config?.customKpis, byCampaign);
 
   const best = [...diagnosed].sort((a, b) => {
     if (mode === "sales") return b.roas - a.roas;
@@ -728,22 +848,12 @@ function OverviewTab({ totals, series, diagnosed, mode, hasDate }: OverviewProps
   const scaleOpp = diagnosed.find((c) => c.status === "scale");
   const warning = diagnosed.find((c) => c.status === "pause" || c.status === "optimize");
 
-  // Exibe todas as métricas suportadas que ainda não estão na tela e que tenham valores numéricos
+  // Exibe todas as métricas suportadas que ainda não estão na tela
   const availableMetrics = (Object.keys(METRIC_CONFIGS) as CanonicalKey[]).filter((m) => {
     // Não mostra se já estiver nos KPIs fixos do modo
     if (kpis.some((k) => k.key === m)) return false;
-    // Não mostra métricas não-numéricas para cards
-    if (
-      [
-        "campaignName",
-        "adSetName",
-        "adName",
-        "date",
-        "objective",
-        "resultIndicator",
-        "resultUnit",
-      ].includes(m)
-    )
+    // Remove campos de identificação básica que não fazem sentido como card isolado
+    if (["campaignName", "adSetName", "adName", "resultIndicator", "resultUnit"].includes(m))
       return false;
     return true;
   });
@@ -788,15 +898,36 @@ function OverviewTab({ totals, series, diagnosed, mode, hasDate }: OverviewProps
       {/* Time series + highlights */}
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 glass-card rounded-xl p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-start justify-between mb-4 flex-wrap gap-4">
             <div>
-              <h3 className="font-display text-lg font-semibold">Evolução do investimento</h3>
+              <h3 className="font-display text-lg font-semibold">Gráfico de Performance</h3>
               <p className="text-xs text-muted-foreground">
-                {hasDate
-                  ? "Investimento e resultados ao longo do tempo"
-                  : "Sem coluna de data no CSV"}
+                {hasDate ? "Evolução métrica ao longo do tempo" : "Sem coluna de data no CSV"}
               </p>
             </div>
+            <Select value={chartMetric} onValueChange={(v) => setChartMetric(v as CanonicalKey)}>
+              <SelectTrigger className="w-[200px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)] h-9 no-print">
+                <SelectValue placeholder="Selecionar métrica" />
+              </SelectTrigger>
+              <SelectContent className="bg-[oklch(0.12_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
+                {mode === "sales" ? (
+                  <>
+                    <SelectItem value="spend">Investimento (R$)</SelectItem>
+                    <SelectItem value="results">Vendas</SelectItem>
+                    <SelectItem value="conversionValue">Faturamento (R$)</SelectItem>
+                    <SelectItem value="roas">ROAS</SelectItem>
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="conversations">Leads (Conversas)</SelectItem>
+                    <SelectItem value="spend">Investimento (R$)</SelectItem>
+                    <SelectItem value="costPerConversation">Custo por Lead (CPL)</SelectItem>
+                  </>
+                )}
+                <SelectItem value="impressions">Impressões</SelectItem>
+                <SelectItem value="reach">Alcance</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           {hasDate && series.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
@@ -813,16 +944,41 @@ function OverviewTab({ totals, series, diagnosed, mode, hasDate }: OverviewProps
                   stroke="oklch(0.6 0 0)"
                   fontSize={10}
                   tickFormatter={(v) => v.split("/").slice(0, 2).join("/")} // Simplifica DD/MM
+                  interval={0}
+                  minTickGap={10}
                 />
                 <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
-                <Tooltip content={<GoldTooltip formatter={(v) => fmtBRL(v)} />} />
+                <Tooltip
+                  content={
+                    <GoldTooltip
+                      formatter={(v) =>
+                        chartMetric === "spend" ||
+                        chartMetric === "conversionValue" ||
+                        chartMetric === "costPerConversation"
+                          ? fmtBRL(v as number)
+                          : chartMetric === "roas"
+                            ? `${fmtNum(v as number, 2)}x`
+                            : fmtNum(v as number)
+                      }
+                    />
+                  }
+                />
                 <Area
                   type="monotone"
-                  dataKey="spend"
-                  name="Investimento"
+                  dataKey={chartMetric}
+                  name={METRIC_CONFIGS[chartMetric]?.label || "Métrica"}
                   stroke={GOLD}
                   fill="url(#goldFill)"
                   strokeWidth={2}
+                />
+                <Brush
+                  dataKey="date"
+                  height={24}
+                  stroke={GOLD}
+                  fill="oklch(0.16 0 0)"
+                  travellerWidth={10}
+                  startIndex={series.length > 30 ? series.length - 30 : 0}
+                  tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -1222,6 +1378,7 @@ function AggregatedTab({
                 <th className="px-3 py-3 font-medium text-right">CTR</th>
                 <th className="px-3 py-3 font-medium text-right">CPC</th>
                 <th className="px-3 py-3 font-medium text-right">CPM</th>
+                {mode === "sales" && <th className="px-3 py-3 font-medium text-right">ROAS</th>}
                 <th className="px-3 py-3 font-medium text-right">Freq.</th>
               </tr>
             </thead>
@@ -1231,15 +1388,20 @@ function AggregatedTab({
                   key={c.key}
                   className="border-b border-[oklch(0.83_0.16_88_/_0.08)] hover:bg-[oklch(0.83_0.16_88_/_0.04)]"
                 >
-                  <td className="px-6 py-3 max-w-xs truncate">{c.key}</td>
+                  <td className="px-6 py-3 max-w-xs truncate font-medium">{c.key}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtBRL(c.spend)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">
                     {fmtNum(c.results || c.purchases || c.conversations || c.thruplays)}
                   </td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtBRL(primaryCost(c))}</td>
-                  <td className="px-3 py-3 text-right tabular-nums">{fmtPct(c.ctr)}</td>
+                  <td className="px-3 py-3 text-right tabular-nums font-medium">{fmtPct(c.ctr)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtBRL(c.cpc)}</td>
                   <td className="px-3 py-3 text-right tabular-nums">{fmtBRL(c.cpm)}</td>
+                  {mode === "sales" && (
+                    <td className="px-3 py-3 text-right tabular-nums font-bold text-[oklch(0.83_0.16_88)]">
+                      {c.roas > 0 ? `${fmtNum(c.roas, 2)}x` : "—"}
+                    </td>
+                  )}
                   <td className="px-3 py-3 text-right tabular-nums">
                     {c.frequency > 0 ? `${fmtNum(c.frequency, 2)}x` : "—"}
                   </td>
@@ -1388,6 +1550,10 @@ function AdsTab({ data }: { data: Aggregated[] }) {
 
 /* ============ Charts Tab ============ */
 
+/* ============ Charts Tab ============ */
+
+import { ComposedChart } from "recharts";
+
 function ChartsTab({
   byCampaign,
   series,
@@ -1401,7 +1567,21 @@ function ChartsTab({
   mode: AnalysisMode;
   totals: Totals;
 }) {
+  const [performanceMetric, setPerformanceMetric] = useState<CanonicalKey>(
+    mode === "sales" ? "results" : mode === "leads" ? "conversations" : "clicks",
+  );
+
   const top = [...byCampaign].sort((a, b) => b.spend - a.spend).slice(0, 6);
+
+  // Calcula série de CPA por dia
+  const cpaSeries = useMemo(() => {
+    return series.map((s) => ({
+      date: s.date,
+      cpa: s.results > 0 ? s.spend / s.results : 0,
+      spend: s.spend,
+      results: s.results,
+    }));
+  }, [series]);
 
   const videoFunnel =
     mode === "video"
@@ -1415,112 +1595,222 @@ function ChartsTab({
         ].filter((d) => d.value > 0)
       : [];
 
+  const metricLabel = METRIC_CONFIGS[performanceMetric]?.label || "Resultados";
+
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
-      {hasDate && series.length > 0 && (
+    <div className="space-y-6">
+      <div className="grid lg:grid-cols-2 gap-6">
+        {hasDate && series.length > 0 ? (
+          <>
+            {/* Gráfico Principal: Eixo Duplo */}
+            <div className="glass-card rounded-xl p-6">
+              <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
+                <div>
+                  <h3 className="font-display text-lg font-semibold">Desempenho x Investimento</h3>
+                  <p className="text-xs text-muted-foreground">Volume de entrega vs Gasto diário</p>
+                </div>
+                <Select
+                  value={performanceMetric}
+                  onValueChange={(v) => setPerformanceMetric(v as CanonicalKey)}
+                >
+                  <SelectTrigger className="w-[180px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)] h-9 no-print">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[oklch(0.12_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
+                    <SelectItem value="results">Resultados</SelectItem>
+                    <SelectItem value="clicks">Cliques no link</SelectItem>
+                    <SelectItem value="impressions">Impressões</SelectItem>
+                    <SelectItem value="reach">Alcance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={series}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    stroke="oklch(0.6 0 0)"
+                    fontSize={10}
+                    tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
+                    interval={0}
+                    minTickGap={10}
+                  />
+                  {/* Eixo Esquerdo: Moeda */}
+                  <YAxis
+                    yAxisId="left"
+                    stroke="oklch(0.6 0 0)"
+                    fontSize={11}
+                    tickFormatter={(v) => fmtCompact(v)}
+                    label={{
+                      value: "Investimento",
+                      angle: -90,
+                      position: "insideLeft",
+                      style: { fill: "oklch(0.5 0 0)", fontSize: 10 },
+                    }}
+                  />
+                  {/* Eixo Direito: Quantidade */}
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    stroke={GOLD}
+                    fontSize={11}
+                    tickFormatter={(v) => fmtCompact(v)}
+                    label={{
+                      value: metricLabel,
+                      angle: 90,
+                      position: "insideRight",
+                      style: { fill: GOLD, fontSize: 10 },
+                    }}
+                  />
+                  <Tooltip
+                    content={
+                      <GoldTooltip
+                        formatter={(val, name) =>
+                          name === "Investimento" ? fmtBRL(val as number) : fmtNum(val as number)
+                        }
+                      />
+                    }
+                  />
+                  <Legend verticalAlign="top" align="right" height={36} />
+                  <Bar
+                    yAxisId="left"
+                    dataKey="spend"
+                    name="Investimento"
+                    fill="oklch(0.83 0.16 88 / 0.15)"
+                    radius={[4, 4, 0, 0]}
+                    barSize={30}
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey={performanceMetric}
+                    name={metricLabel}
+                    stroke={GOLD_BRIGHT}
+                    strokeWidth={3}
+                    dot={{ r: 4, fill: GOLD_BRIGHT, strokeWidth: 0 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                  />
+                  <Brush
+                    dataKey="date"
+                    height={24}
+                    stroke={GOLD}
+                    fill="oklch(0.16 0 0)"
+                    travellerWidth={10}
+                    startIndex={series.length > 30 ? series.length - 30 : 0}
+                    tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Gráfico de Tendência de CPA */}
+            <div className="glass-card rounded-xl p-6">
+              <h3 className="font-display text-lg font-semibold mb-1">Tendência do CPA</h3>
+              <p className="text-xs text-muted-foreground mb-6">
+                Custo por resultado ao longo do tempo
+              </p>
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={cpaSeries}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    stroke="oklch(0.6 0 0)"
+                    fontSize={10}
+                    tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
+                    interval={0}
+                    minTickGap={10}
+                  />
+                  <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtBRL(v)} />
+                  <Tooltip content={<GoldTooltip formatter={(v) => fmtBRL(v as number)} />} />
+                  <Line
+                    type="stepAfter"
+                    dataKey="cpa"
+                    name="CPA"
+                    stroke={DANGER}
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </>
+        ) : (
+          <div className="lg:col-span-2">
+            <EmptyChart label="Dados temporais necessários para estas visualizações" />
+          </div>
+        )}
+
         <div className="glass-card rounded-xl p-6">
-          <h3 className="font-display text-lg font-semibold mb-4">Cliques x Impressões por dia</h3>
+          <h3 className="font-display text-lg font-semibold mb-4">Distribuição de verba</h3>
           <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={series}>
+            <PieChart>
+              <Pie
+                data={top}
+                dataKey="spend"
+                nameKey="key"
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                innerRadius={50}
+                stroke="oklch(0.12 0 0)"
+                strokeWidth={2}
+              >
+                {top.map((_, i) => (
+                  <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                ))}
+              </Pie>
+              <Tooltip content={<GoldTooltip formatter={(v) => fmtBRL(v)} />} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="glass-card rounded-xl p-6">
+          <h3 className="font-display text-lg font-semibold mb-4">Investimento × Resultado</h3>
+          <ResponsiveContainer width="100%" height={280}>
+            <ScatterChart>
               <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" />
               <XAxis
-                dataKey="date"
+                type="number"
+                dataKey="spend"
+                name="Investimento"
                 stroke="oklch(0.6 0 0)"
-                fontSize={10}
-                tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
-                interval={0}
-                minTickGap={10}
+                fontSize={11}
+                tickFormatter={(v) => fmtCompact(v)}
               />
-              <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
-              <Tooltip content={<GoldTooltip />} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line
-                type="monotone"
-                dataKey="clicks"
-                name="Cliques"
-                stroke={GOLD_BRIGHT}
-                strokeWidth={2}
-                dot={{ r: 3 }}
+              <YAxis
+                type="number"
+                dataKey={
+                  mode === "sales" ? "purchases" : mode === "leads" ? "conversations" : "clicks"
+                }
+                name="Resultados"
+                stroke="oklch(0.6 0 0)"
+                fontSize={11}
               />
-              <Line
-                type="monotone"
-                dataKey="impressions"
-                name="Impressões"
-                stroke={GOLD_DARK}
-                strokeWidth={2}
-                dot={{ r: 3 }}
-              />
-            </LineChart>
+              <Tooltip content={<GoldTooltip />} cursor={{ strokeDasharray: "3 3" }} />
+              <Scatter data={byCampaign} fill={GOLD} />
+            </ScatterChart>
           </ResponsiveContainer>
         </div>
-      )}
 
-      <div className="glass-card rounded-xl p-6">
-        <h3 className="font-display text-lg font-semibold mb-4">Distribuição de verba</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <PieChart>
-            <Pie
-              data={top}
-              dataKey="spend"
-              nameKey="key"
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              innerRadius={50}
-              stroke="oklch(0.12 0 0)"
-              strokeWidth={2}
-            >
-              {top.map((_, i) => (
-                <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-              ))}
-            </Pie>
-            <Tooltip content={<GoldTooltip formatter={(v) => fmtBRL(v)} />} />
-          </PieChart>
-        </ResponsiveContainer>
+        {videoFunnel.length > 0 && (
+          <div className="glass-card rounded-xl p-6 lg:col-span-2">
+            <h3 className="font-display text-lg font-semibold mb-4">Funil de retenção de vídeo</h3>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={videoFunnel}>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" />
+                <XAxis dataKey="name" stroke="oklch(0.6 0 0)" fontSize={11} />
+                <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
+                <Tooltip
+                  content={<GoldTooltip />}
+                  cursor={{ fill: "oklch(0.83 0.16 88 / 0.05)" }}
+                />
+                <Bar dataKey="value" name="Visualizações" fill={GOLD} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
-
-      <div className="glass-card rounded-xl p-6">
-        <h3 className="font-display text-lg font-semibold mb-4">Investimento × Resultado</h3>
-        <ResponsiveContainer width="100%" height={280}>
-          <ScatterChart>
-            <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" />
-            <XAxis
-              type="number"
-              dataKey="spend"
-              name="Investimento"
-              stroke="oklch(0.6 0 0)"
-              fontSize={11}
-              tickFormatter={(v) => fmtCompact(v)}
-            />
-            <YAxis
-              type="number"
-              dataKey={
-                mode === "sales" ? "purchases" : mode === "leads" ? "conversations" : "clicks"
-              }
-              name="Resultados"
-              stroke="oklch(0.6 0 0)"
-              fontSize={11}
-            />
-            <Tooltip content={<GoldTooltip />} cursor={{ strokeDasharray: "3 3" }} />
-            <Scatter data={byCampaign} fill={GOLD} />
-          </ScatterChart>
-        </ResponsiveContainer>
-      </div>
-
-      {videoFunnel.length > 0 && (
-        <div className="glass-card rounded-xl p-6">
-          <h3 className="font-display text-lg font-semibold mb-4">Funil de retenção de vídeo</h3>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={videoFunnel}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" />
-              <XAxis dataKey="name" stroke="oklch(0.6 0 0)" fontSize={11} />
-              <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
-              <Tooltip content={<GoldTooltip />} cursor={{ fill: "oklch(0.83 0.16 88 / 0.05)" }} />
-              <Bar dataKey="value" name="Visualizações" fill={GOLD} radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
     </div>
   );
 }
@@ -1811,51 +2101,45 @@ function ReportTab({
   hasDate: boolean;
 }) {
   const { config } = useStore();
-  const kpis = getKpis(totals, mode).slice(0, 6);
-  const top = [...diagnosed].sort((a, b) => b.spend - a.spend).slice(0, 5);
+  const kpis = getKpis(totals, mode, config?.customKpis);
+  const top = [...diagnosed].sort((a, b) => b.spend - a.spend).slice(0, 15);
 
   return (
-    <div className="bg-[oklch(0.13_0_0)] print:bg-white rounded-2xl p-8 md:p-12 print:p-6 print:text-black">
-      <div className="flex items-end justify-between flex-wrap gap-4 pb-6 border-b border-[oklch(0.83_0.16_88_/_0.2)] print:border-black/20">
+    <div className="bg-[oklch(0.13_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] rounded-2xl p-8 md:p-12 print:p-0 print:border-none print:bg-transparent">
+      <div className="flex items-end justify-between flex-wrap gap-4 pb-6 border-b border-[oklch(0.83_0.16_88_/_0.2)]">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-[oklch(0.83_0.16_88)] mb-2">
             Relatório de Performance
           </div>
-          <h1 className="font-display text-3xl md:text-4xl font-bold print:text-black">
+          <h1 className="font-display text-3xl md:text-4xl font-bold">
             {config?.clientName || "Análise de Campanhas"}
           </h1>
           {config?.period && (
-            <p className="text-sm text-muted-foreground mt-1 print:text-gray-700">
-              Período: {config.period}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Período: {config.period}</p>
           )}
         </div>
-        <div className="text-right text-xs text-muted-foreground print:text-gray-600">
-          <div className="font-display text-xl gold-text print:text-black print:font-bold">
-            Audiência de Ouro
-          </div>
+        <div className="text-right text-xs text-muted-foreground">
+          <div className="font-display text-xl gold-text">Audiência de Ouro</div>
           <div>Relatório gerado pelo Dashboard de Ouro</div>
         </div>
       </div>
 
-      <section className="mt-8 print-page">
-        <h2 className="font-display text-xl font-semibold mb-4 print:text-black">
+      <section className="mt-8">
+        <h2 className="font-display text-xl font-semibold mb-4 text-[oklch(0.83_0.16_88)]">
           Resumo executivo
         </h2>
-        <p className="text-sm leading-relaxed text-foreground/85 print:text-black">{dx.summary}</p>
+        <p className="text-sm leading-relaxed text-foreground/85">{dx.summary}</p>
 
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
           {kpis.map((k) => (
             <div
               key={k.label}
-              className="rounded-lg border border-[oklch(0.83_0.16_88_/_0.2)] print:border-black/20 p-4"
+              className="rounded-lg border border-[oklch(0.83_0.16_88_/_0.2)] p-4 bg-[oklch(0.16_0_0)]"
             >
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground print:text-gray-600">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 {k.label}
               </div>
-              <div className="font-display text-2xl font-bold gold-text print:text-black mt-1">
-                {k.value}
-              </div>
+              <div className="font-display text-2xl font-bold gold-text mt-1">{k.value}</div>
             </div>
           ))}
         </div>
@@ -1863,103 +2147,113 @@ function ReportTab({
 
       {hasDate && series.length > 0 && (
         <section className="mt-8">
-          <h2 className="font-display text-xl font-semibold mb-4 print:text-black">
+          <h2 className="font-display text-xl font-semibold mb-4 text-[oklch(0.83_0.16_88)]">
             Evolução do investimento
           </h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={series}>
-              <defs>
-                <linearGradient id="reportGold" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={GOLD} stopOpacity={0.6} />
-                  <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" />
-              <XAxis
-                dataKey="date"
-                stroke="oklch(0.6 0 0)"
-                fontSize={10}
-                tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
-                interval={0}
-                minTickGap={10}
-              />
-              <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
-              <Tooltip content={<GoldTooltip formatter={(v) => fmtBRL(v)} />} />
-              <Area
-                type="monotone"
-                dataKey="spend"
-                stroke={GOLD}
-                fill="url(#reportGold)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <div className="bg-[oklch(0.16_0_0)] p-4 rounded-xl border border-[oklch(0.83_0.16_88_/_0.1)]">
+            <ResponsiveContainer width="100%" height={260}>
+              <AreaChart data={series}>
+                <defs>
+                  <linearGradient id="reportGold" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={GOLD} stopOpacity={0.6} />
+                    <stop offset="100%" stopColor={GOLD} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.3 0 0)" />
+                <XAxis
+                  dataKey="date"
+                  stroke="oklch(0.6 0 0)"
+                  fontSize={10}
+                  tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
+                  interval={0}
+                  minTickGap={10}
+                />
+                <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtCompact(v)} />
+                <Tooltip content={<GoldTooltip formatter={(v) => fmtBRL(v)} />} />
+                <Area
+                  type="monotone"
+                  dataKey="spend"
+                  stroke={GOLD}
+                  fill="url(#reportGold)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </section>
       )}
 
       <section className="mt-8 print-page">
-        <h2 className="font-display text-xl font-semibold mb-4 print:text-black">Top campanhas</h2>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left border-b border-[oklch(0.83_0.16_88_/_0.2)] print:border-black/20 text-xs uppercase tracking-wider text-muted-foreground print:text-gray-600">
-              <th className="py-2">Campanha</th>
-              <th className="py-2 text-right">Investimento</th>
-              <th className="py-2 text-right">CTR</th>
-              {mode === "sales" && <th className="py-2 text-right">ROAS</th>}
-              <th className="py-2">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {top.map((c) => (
-              <tr
-                key={c.key}
-                className="border-b border-[oklch(0.83_0.16_88_/_0.08)] print:border-black/10"
-              >
-                <td className="py-2.5">{c.key}</td>
-                <td className="py-2.5 text-right tabular-nums">{fmtBRL(c.spend)}</td>
-                <td className="py-2.5 text-right tabular-nums">{fmtPct(c.ctr)}</td>
-                {mode === "sales" && (
-                  <td className="py-2.5 text-right tabular-nums">
-                    {c.roas > 0 ? `${fmtNum(c.roas, 2)}x` : "—"}
-                  </td>
-                )}
-                <td className="py-2.5">
-                  <StatusBadge status={c.status} />
-                </td>
+        <h2 className="font-display text-xl font-semibold mb-4 text-[oklch(0.83_0.16_88)]">
+          Detalhamento de Campanhas
+        </h2>
+        <div className="overflow-hidden rounded-xl border border-[oklch(0.83_0.16_88_/_0.15)] bg-[oklch(0.16_0_0)]">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left border-b border-[oklch(0.83_0.16_88_/_0.2)] text-xs uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-3">Campanha</th>
+                <th className="px-2 py-3 text-right">Invest.</th>
+                <th className="px-2 py-3 text-right">Result.</th>
+                <th className="px-2 py-3 text-right">CTR</th>
+                {mode === "sales" && <th className="px-2 py-3 text-right">ROAS</th>}
+                <th className="px-4 py-3">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {top.map((c) => (
+                <tr
+                  key={c.key}
+                  className="border-b border-[oklch(0.83_0.16_88_/_0.08)] last:border-0"
+                >
+                  <td className="px-4 py-3 font-medium">{c.key}</td>
+                  <td className="px-2 py-3 text-right tabular-nums">{fmtBRL(c.spend)}</td>
+                  <td className="px-2 py-3 text-right tabular-nums">
+                    {fmtNum(c.results || c.purchases || c.conversations || c.thruplays)}
+                  </td>
+                  <td className="px-2 py-3 text-right tabular-nums">{fmtPct(c.ctr)}</td>
+                  {mode === "sales" && (
+                    <td className="px-2 py-3 text-right tabular-nums font-bold text-[oklch(0.83_0.16_88)]">
+                      {c.roas > 0 ? `${fmtNum(c.roas, 2)}x` : "—"}
+                    </td>
+                  )}
+                  <td className="px-4 py-3">
+                    <StatusBadge status={c.status} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="mt-8 grid md:grid-cols-2 gap-6">
-        <div>
-          <h2 className="font-display text-xl font-semibold mb-3 print:text-black">
+        <div className="bg-[oklch(0.16_0_0)] p-6 rounded-xl border border-[oklch(0.83_0.16_88_/_0.1)]">
+          <h2 className="font-display text-xl font-semibold mb-3 text-[oklch(0.83_0.16_88)]">
             Principais aprendizados
           </h2>
-          <ul className="space-y-2 text-sm">
-            {[...dx.strengths, ...dx.opportunities].slice(0, 5).map((s, i) => (
-              <li key={i} className="flex gap-2 print:text-black">
-                <span className="text-[oklch(0.83_0.16_88)] print:text-black">•</span>
-                {s}
+          <ul className="space-y-3 text-sm">
+            {[...dx.strengths, ...dx.opportunities].slice(0, 8).map((s, i) => (
+              <li key={i} className="flex gap-3">
+                <span className="text-[oklch(0.83_0.16_88)] shrink-0">•</span>
+                <span className="text-foreground/90">{s}</span>
               </li>
             ))}
           </ul>
         </div>
-        <div>
-          <h2 className="font-display text-xl font-semibold mb-3 print:text-black">
+        <div className="bg-[oklch(0.16_0_0)] p-6 rounded-xl border border-[oklch(0.83_0.16_88_/_0.1)]">
+          <h2 className="font-display text-xl font-semibold mb-3 text-[oklch(0.83_0.16_88)]">
             Próximos passos
           </h2>
-          <ul className="space-y-2 text-sm">
+          <ul className="space-y-3 text-sm">
             {dx.warnings.length > 0 ? (
-              dx.warnings.slice(0, 5).map((s, i) => (
-                <li key={i} className="flex gap-2 print:text-black">
-                  <span className="text-[oklch(0.83_0.16_88)] print:text-black">→</span>
-                  {s}
+              dx.warnings.slice(0, 8).map((s, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="text-destructive shrink-0">→</span>
+                  <span className="text-foreground/90">{s}</span>
                 </li>
               ))
             ) : (
-              <li className="text-muted-foreground print:text-gray-600">
+              <li className="flex gap-3 text-muted-foreground">
                 Manter monitoramento da performance atual.
               </li>
             )}
@@ -1967,15 +2261,12 @@ function ReportTab({
         </div>
       </section>
 
-      <div className="mt-10 pt-6 border-t border-[oklch(0.83_0.16_88_/_0.2)] print:border-black/20 flex items-center justify-between flex-wrap gap-3">
-        <div className="text-xs text-muted-foreground print:text-gray-600">
+      <div className="mt-10 pt-6 border-t border-[oklch(0.83_0.16_88_/_0.2)] no-print flex items-center justify-between flex-wrap gap-3">
+        <div className="text-xs text-muted-foreground">
           Relatório gerado por{" "}
-          <strong className="text-[oklch(0.83_0.16_88)] print:text-black">Audiência de Ouro</strong>
+          <strong className="text-[oklch(0.83_0.16_88)]">Audiência de Ouro</strong>
         </div>
-        <Button
-          onClick={() => window.print()}
-          className="gold-gradient text-black font-semibold no-print"
-        >
+        <Button onClick={() => window.print()} className="gold-gradient text-black font-semibold">
           <Printer className="w-4 h-4 mr-1.5" /> Imprimir / Salvar PDF
         </Button>
       </div>

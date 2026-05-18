@@ -17,6 +17,11 @@ export interface Aggregated {
   video75: number;
   video95: number;
   engagement: number;
+  budget: number;
+  // metadados
+  delivery: string;
+  budgetType: string;
+  attribution: string;
   // derivados
   ctr: number;
   cpc: number;
@@ -53,6 +58,10 @@ export function aggregate(rows: AdRow[], dimension: keyof AdRow): Aggregated[] {
         video75: 0,
         video95: 0,
         engagement: 0,
+        budget: 0,
+        delivery: r.delivery || "",
+        budgetType: r.budgetType || "",
+        attribution: r.attribution || "",
         ctr: 0,
         cpc: 0,
         cpm: 0,
@@ -81,6 +90,10 @@ export function aggregate(rows: AdRow[], dimension: keyof AdRow): Aggregated[] {
     a.video75 += r.video75;
     a.video95 += r.video95;
     a.engagement += r.engagement;
+    // Se o orçamento for fixo por conjunto/campanha, somar pode inflar.
+    // Mas AdRow é por dia, e o orçamento no CSV da Meta é o valor atual.
+    // Tomaremos o maior orçamento encontrado para a entidade.
+    a.budget = Math.max(a.budget, r.budget || 0);
     a.rows += 1;
   }
   for (const a of map.values()) {
@@ -94,7 +107,9 @@ export function aggregate(rows: AdRow[], dimension: keyof AdRow): Aggregated[] {
     a.costPerThruplay = a.thruplays > 0 ? a.spend / a.thruplays : 0;
     a.frequency = a.reach > 0 ? a.impressions / a.reach : 0;
     // Ticket médio dinâmico por linha agregada
-    if (a.purchases > 0) a.conversionValue = a.conversionValue || 0; // Garantia de existência
+    if (a.purchases > 0) {
+      a.conversionValue = a.conversionValue || 0;
+    }
   }
   return Array.from(map.values());
 }
@@ -115,6 +130,7 @@ export interface Totals {
   video75: number;
   video95: number;
   engagement: number;
+  budget: number;
   ctr: number;
   cpc: number;
   cpm: number;
@@ -144,6 +160,7 @@ export function totals(rows: AdRow[]): Totals {
     video75: 0,
     video95: 0,
     engagement: 0,
+    budget: 0,
     ctr: 0,
     cpc: 0,
     cpm: 0,
@@ -155,6 +172,10 @@ export function totals(rows: AdRow[]): Totals {
     frequency: 0,
     ticketMedio: 0,
   };
+  // Orçamentos são por conjunto/campanha, somar tudo pode ser confuso.
+  // Vamos somar os orçamentos únicos por AdSet se houver, caso contrário simplificaremos.
+  const uniqueBudgets = new Map<string, number>();
+
   for (const r of rows) {
     t.spend += r.spend;
     t.impressions += r.impressions;
@@ -171,7 +192,16 @@ export function totals(rows: AdRow[]): Totals {
     t.video75 += r.video75;
     t.video95 += r.video95;
     t.engagement += r.engagement;
+
+    if (r.adSetName) {
+      uniqueBudgets.set(r.adSetName, Math.max(uniqueBudgets.get(r.adSetName) || 0, r.budget));
+    } else if (r.campaignName) {
+      uniqueBudgets.set(r.campaignName, Math.max(uniqueBudgets.get(r.campaignName) || 0, r.budget));
+    }
   }
+
+  t.budget = Array.from(uniqueBudgets.values()).reduce((sum, b) => sum + b, 0);
+
   t.ctr = t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0;
   t.cpc = t.clicks > 0 ? t.spend / t.clicks : 0;
   t.cpm = t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0;
@@ -181,19 +211,27 @@ export function totals(rows: AdRow[]): Totals {
   t.costPerConversation = t.conversations > 0 ? t.spend / t.conversations : 0;
   t.costPerThruplay = t.thruplays > 0 ? t.spend / t.thruplays : 0;
   t.frequency = t.reach > 0 ? t.impressions / t.reach : 0;
-  t.ticketMedio = t.purchases > 0 ? t.conversionValue / t.purchases : 0;
+  t.ticketMedio =
+    t.purchases > 0
+      ? t.conversionValue / t.purchases
+      : rows.reduce((max, r) => Math.max(max, r.averageConversionValue || 0), 0);
   return t;
 }
 
-function parseDate(s: string): number {
+export function parseDate(s: string): number {
   if (!s) return 0;
-  // Tenta DD/MM/YYYY
-  const brMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+
+  // Limpa possíveis espaços ou caracteres invisíveis
+  const clean = s.trim();
+
+  // Tenta DD/MM/YYYY (comum em exportações brasileiras)
+  const brMatch = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (brMatch) {
     return new Date(parseInt(brMatch[3]), parseInt(brMatch[2]) - 1, parseInt(brMatch[1])).getTime();
   }
-  // Tenta YYYY-MM-DD
-  const isoMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+
+  // Tenta YYYY-MM-DD (formato ISO/Meta padrão)
+  const isoMatch = clean.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
   if (isoMatch) {
     return new Date(
       parseInt(isoMatch[1]),
@@ -201,7 +239,8 @@ function parseDate(s: string): number {
       parseInt(isoMatch[3]),
     ).getTime();
   }
-  const d = new Date(s);
+
+  const d = new Date(clean);
   return isNaN(d.getTime()) ? 0 : d.getTime();
 }
 
@@ -213,6 +252,8 @@ export function timeSeries(rows: AdRow[]): {
   impressions: number;
   conversionValue: number;
   conversations: number;
+  cpa: number;
+  costPerConversation: number;
 }[] {
   const map = new Map<
     string,
@@ -248,5 +289,11 @@ export function timeSeries(rows: AdRow[]): {
     e.conversionValue += r.conversionValue;
     e.conversations += r.conversations;
   }
-  return Array.from(map.values()).sort((a, b) => parseDate(a.date) - parseDate(b.date));
+  return Array.from(map.values())
+    .map((d) => ({
+      ...d,
+      cpa: d.results > 0 ? d.spend / d.results : 0,
+      costPerConversation: d.conversations > 0 ? d.spend / d.conversations : 0,
+    }))
+    .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 }

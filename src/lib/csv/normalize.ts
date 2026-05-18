@@ -6,7 +6,12 @@ export type CanonicalKey =
   | "adSetName"
   | "adName"
   | "date"
+  | "endDate"
   | "objective"
+  | "delivery"
+  | "budget"
+  | "budgetType"
+  | "attribution"
   | "spend"
   | "impressions"
   | "reach"
@@ -24,6 +29,7 @@ export type CanonicalKey =
   | "conversionValue"
   | "roas"
   | "conversations"
+  | "costPerConversation"
   | "videoPlays"
   | "thruplays"
   | "video25"
@@ -56,10 +62,40 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "inicio do relatorio",
     "data de inicio",
     "start date",
-    "reporting starts",
-    "reporting starts",
+    "inicio",
+  ],
+  endDate: [
+    "reporting ends",
+    "termino dos relatorios",
+    "termino do relatorio",
+    "data de termino",
+    "end date",
+    "termino",
+    "encerramento dos relatorios",
   ],
   objective: ["objective", "objetivo", "objective of the campaign"],
+  delivery: [
+    "delivery",
+    "veiculacao",
+    "veiculacao da campanha",
+    "veiculação",
+    "veiculação da campanha",
+  ],
+  budget: [
+    "budget",
+    "orcamento",
+    "orcamento do conjunto de anuncios",
+    "orcamento do conjunto de anúncios",
+    "valor do orcamento",
+  ],
+  budgetType: [
+    "budget type",
+    "tipo de orcamento",
+    "tipo de orcamento do conjunto de anuncios",
+    "tipo de orcamento do conjunto de anúncios",
+    "tipo de orçamento",
+  ],
+  attribution: ["attribution setting", "configuracao de atribuicao", "configuração de atribuição"],
   spend: [
     "amount spent",
     "amount spent (brl)",
@@ -84,6 +120,7 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "cliques no link único",
     "unique link clicks",
     "link clicks",
+    "cliques no link unicos",
   ],
   ctr: [
     "ctr",
@@ -95,6 +132,9 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "ctr (todos)",
     "unique ctr (link click-through rate)",
     "ctr",
+    "ctr (taxa de cliques no link) [todos]",
+    "taxa de cliques",
+    "taxa de cliques no link",
   ],
   cpc: [
     "cpc",
@@ -104,6 +144,9 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "cpc (custo por clique no link)",
     "unique cpc (cost per link click)",
     "cpc",
+    "custo por clique (cpc)",
+    "custo medio por clique",
+    "custo médio por clique",
   ],
   cpm: [
     "cpm",
@@ -113,7 +156,13 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "cpm (custo por mil impressões)",
   ],
   results: ["results", "resultados"],
-  resultIndicator: ["result indicator", "indicador de resultados", "indicador de resultado"],
+  resultIndicator: [
+    "result indicator",
+    "indicador de resultados",
+    "indicador de resultado",
+    "tipo de resultado",
+    "result type",
+  ],
   resultUnit: ["result unit", "unidade de resultados", "unidade de resultado"],
   costPerResult: [
     "cost per result",
@@ -169,6 +218,16 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "valor de conversao de compras (fb pixel)",
     "valor de conversao de compras offline",
     "faturamento",
+    "valor dos resultados",
+  ],
+  averageConversionValue: [
+    "average conversion value",
+    "valor medio de conversao de compra",
+    "valor médio de conversão de compra",
+    "valor medio de conversao",
+    "valor médio de conversão",
+    "ticket medio",
+    "ticket médio",
   ],
   roas: [
     "roas",
@@ -179,6 +238,12 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "roas da compra",
     "purchase roas (return on ad spend)",
     "roas",
+    "indicador de roas do resultado",
+    "roas de resultados",
+    "retorno sobre o investimento em anuncios",
+    "retorno sobre o investimento em publicidade",
+    "roas do resultado",
+    "roas total",
   ],
   conversations: [
     "messaging conversations started",
@@ -188,6 +253,7 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "novas conversas por mensagem",
     "conversas",
     "new messaging conversations",
+    "conversas por mensagem iniciadas",
   ],
   costPerConversation: [
     "cost per messaging conversation started",
@@ -264,7 +330,9 @@ const norm = (s: string) =>
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\[.*?\]/g, "") // Strip attribution windows like [28 days...]
+    .replace(/\[.*?\]/g, "") // Strip [28 days...]
+    .replace(/\(.*?\)/g, "") // Strip (BRL), (compras), etc.
+    .replace(/[^a-z0-9\s]/g, "") // Remove remaining symbols
     .replace(/\s+/g, " ")
     .trim();
 
