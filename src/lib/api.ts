@@ -5,8 +5,18 @@ import type { AdRow, FunnelConfig } from "./csv/types";
 // Imports dinâmicos dentro dos handlers: executam apenas no servidor.
 // Imports estáticos de código de /server/ são bloqueados no bundle do cliente.
 async function serverDeps() {
-  const [{ getDb }, clients, insights, external, imports, metrics, quality, commercial, funnelConfig] =
-    await Promise.all([
+  const [
+    { getDb },
+    clients,
+    insights,
+    external,
+    imports,
+    metrics,
+    quality,
+    commercial,
+    funnelConfig,
+    funnel,
+  ] = await Promise.all([
       import("./server/db"),
       import("./server/clients"),
       import("./server/insights"),
@@ -16,6 +26,7 @@ async function serverDeps() {
       import("./server/quality"),
       import("./server/commercial"),
       import("./server/funnel-config"),
+      import("./server/funnel"),
     ]);
   const db = await getDb();
   return {
@@ -28,6 +39,7 @@ async function serverDeps() {
     ...quality,
     ...commercial,
     ...funnelConfig,
+    ...funnel,
   };
 }
 
@@ -201,6 +213,15 @@ export const fetchCommercialData = createServerFn({ method: "GET" })
   .handler(async ({ data: clientId }) => {
     const { db, getCommercialPeriods } = await serverDeps();
     return getCommercialPeriods(db, clientId);
+  });
+
+export const fetchClientFunnel = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string; start?: string; end?: string }) => input)
+  .handler(async ({ data }) => {
+    const { db, getClientBySlug, getClientFunnel } = await serverDeps();
+    const client = await getClientBySlug(db, data.slug);
+    if (!client) return null;
+    return getClientFunnel(db, client.id, { start: data.start, end: data.end });
   });
 
 export const runCommercialBackfill = createServerFn({ method: "POST" })
