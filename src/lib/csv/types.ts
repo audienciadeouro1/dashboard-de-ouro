@@ -155,3 +155,23 @@ export interface ReportConfig {
   mode: AnalysisMode;
   customKpis?: CanonicalKey[];
 }
+
+// Fase 2A — configuração de funil por cliente (etapas Meta + comerciais + mapeamento)
+export interface FunnelStageMeta {
+  key: string;
+  label: string;
+}
+export interface FunnelStageCommercial {
+  key: string;
+  label: string;
+  column: string;
+}
+export interface FunnelConfig {
+  metaStages: FunnelStageMeta[];
+  commercial: {
+    periodColumn: string;
+    revenueColumn: string;
+    ticketColumn?: string;
+    stages: FunnelStageCommercial[];
+  };
+}
