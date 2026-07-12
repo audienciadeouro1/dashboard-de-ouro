@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, notFound, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, AlertCircle } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { UploadDropzone } from "@/components/UploadDropzone";
@@ -39,6 +39,28 @@ function UploadPage() {
         ? "sales"
         : "leads";
   const isMariaMaria = mode === "maria-maria";
+
+  // A página inteira aceita o arraste: soltar o CSV em qualquer lugar
+  // funciona, em vez de exigir mira na caixa de upload.
+  useEffect(() => {
+    function onDragOver(e: DragEvent) {
+      e.preventDefault();
+    }
+    function onDrop(e: DragEvent) {
+      e.preventDefault();
+      const f = e.dataTransfer?.files?.[0];
+      if (f && (f.type === "text/csv" || f.name.toLowerCase().endsWith(".csv"))) {
+        void handleFileA(f);
+      }
+    }
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleFileA(f: File) {
     setError(null);
