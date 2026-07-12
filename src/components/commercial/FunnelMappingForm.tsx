@@ -39,7 +39,7 @@ function slugify(text: string): string {
 function assignmentsFromConfig(headers: string[], config: FunnelConfig | null | undefined) {
   const map = new Map<string, ColumnAssignment>();
   for (const h of headers) map.set(h, { role: "ignore", label: h });
-  if (!config) return map;
+  if (!config?.commercial) return map;
   const c = config.commercial;
   if (map.has(c.periodColumn)) map.set(c.periodColumn, { role: "period", label: c.periodColumn });
   if (map.has(c.revenueColumn)) map.set(c.revenueColumn, { role: "revenue", label: c.revenueColumn });

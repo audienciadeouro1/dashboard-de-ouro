@@ -194,7 +194,7 @@ export const importCommercialCsv = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<{ saved: number }> => {
     const { db, getFunnelConfig, upsertCommercialPeriods, recordImport } = await serverDeps();
     const config = await getFunnelConfig(db, data.clientId);
-    if (!config) throw new Error("Configure o mapeamento do funil antes de importar.");
+    if (!config?.commercial) throw new Error("Configure o mapeamento do funil comercial antes de importar.");
     const { buildCommercialPeriods } = await import("./csv/commercial");
     const periods = buildCommercialPeriods(data.rows, config, data.refYear);
     const saved = await upsertCommercialPeriods(db, data.clientId, periods);

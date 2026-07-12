@@ -32,8 +32,8 @@ export function deriveFunnel(stages: FunnelStage[], spend: number, revenue: numb
       dropFromPrev: Math.max(0, prev - s.count),
     };
   });
-  const commercial = stages.filter((s) => s.source === "commercial");
-  const sales = commercial.length > 0 ? commercial[commercial.length - 1].count : 0;
+  // Vendas = última etapa do funil (comercial na Maria Maria; Compras/pixel no Aki Sushi).
+  const sales = stages.length > 0 ? stages[stages.length - 1].count : 0;
   return {
     stages: out,
     spend,

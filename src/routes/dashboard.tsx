@@ -186,9 +186,10 @@ export function DashboardContent({
   const isMariaMaria = config.mode === "maria-maria" && !!dataset.mariaMaria;
   const effectiveMode = isMariaMaria ? "leads" : config.mode;
 
-  // Aba Funil só aparece quando há funil com etapas comerciais preenchidas.
+  // Aba Funil aparece quando há um funil com pelo menos 2 etapas e dados no topo
+  // (funil comercial da Maria Maria ou funil de pixel do Aki Sushi).
   const showFunnel = Boolean(
-    funnel && funnel.stages.some((s) => s.source === "commercial" && s.count > 0),
+    funnel && funnel.stages.length >= 2 && funnel.stages[0].count > 0,
   );
 
   // listas únicas

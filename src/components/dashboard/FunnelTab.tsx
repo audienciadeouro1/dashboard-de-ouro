@@ -54,7 +54,9 @@ export function FunnelTab({ funnel }: { funnel: FunnelResult }) {
         <div className="flex flex-col items-center gap-2">
           {funnel.stages.map((s, i) => {
             const width = widthOf(s.count);
-            const isCommercial = s.source === "commercial";
+            const isLast = i === funnel.stages.length - 1;
+            // Dourado cheio para etapas comerciais e para a etapa final (a venda/conversão).
+            const isCommercial = s.source === "commercial" || isLast;
             const showHandoff = firstCommercial && lastMeta && i === firstCommercialIdx;
 
             return (

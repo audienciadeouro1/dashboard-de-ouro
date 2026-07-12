@@ -37,8 +37,9 @@ export function buildCommercialPeriods(
   config: FunnelConfig,
   refYear: number,
 ): CommercialPeriodInput[] {
-  const col = config.commercial.periodColumn;
+  const col = config.commercial?.periodColumn;
   const out: CommercialPeriodInput[] = [];
+  if (!col) return out;
   for (const row of rows) {
     const text = row[col];
     const range = parsePeriodRange(text, refYear);

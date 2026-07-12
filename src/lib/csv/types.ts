@@ -156,10 +156,17 @@ export interface ReportConfig {
   customKpis?: CanonicalKey[];
 }
 
-// Fase 2A — configuração de funil por cliente (etapas Meta + comerciais + mapeamento)
+// Fase 2A/2B — configuração de funil por cliente (etapas Meta + comerciais + mapeamento)
 export interface FunnelStageMeta {
   key: string;
   label: string;
+  /**
+   * Coluna crua do CSV do Meta (de `AdRow.rawData`) a somar para esta etapa —
+   * usada para eventos de pixel (Visualizações de conteúdo, Adições ao carrinho,
+   * Finalizações iniciadas etc.) que não viram métrica tipada. Quando ausente, a
+   * contagem vem de um campo já calculado em `Totals` pela chave `key`.
+   */
+  column?: string;
 }
 export interface FunnelStageCommercial {
   key: string;
@@ -168,10 +175,13 @@ export interface FunnelStageCommercial {
 }
 export interface FunnelConfig {
   metaStages: FunnelStageMeta[];
-  commercial: {
+  /** Presente em clientes com CSV comercial (ex.: Maria Maria). Ausente em funis 100% pixel (ex.: Aki Sushi). */
+  commercial?: {
     periodColumn: string;
     revenueColumn: string;
     ticketColumn?: string;
     stages: FunnelStageCommercial[];
   };
+  /** Faturamento vindo do Meta (chave de `Totals`, ex.: "conversionValue") quando não há CSV comercial. */
+  metaRevenueKey?: string;
 }
