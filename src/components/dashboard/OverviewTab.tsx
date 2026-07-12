@@ -36,7 +36,14 @@ export function OverviewTab({
   byCampaign,
   dateRange,
 }: OverviewProps & { byCampaign: Aggregated[] }) {
-  const { config, dataset } = useDashboard();
+  const { config, dataset, onCustomKpisChange } = useDashboard();
+
+  // Persiste as métricas extras: no dashboard de cliente grava no banco (callback),
+  // na análise avulsa usa o store em memória.
+  const applyCustomKpis = (next: CanonicalKey[]) => {
+    if (onCustomKpisChange) onCustomKpisChange(next);
+    else setConfig({ customKpis: next });
+  };
   
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -267,7 +274,7 @@ export function OverviewTab({
                 <button
                   onClick={() => {
                     const current = config.customKpis || [];
-                    setConfig({ customKpis: current.filter((x) => x !== k.key) });
+                    applyCustomKpis(current.filter((x) => x !== k.key));
                   }}
                   className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center no-print z-10"
                 >
@@ -283,10 +290,8 @@ export function OverviewTab({
               available={availableMetrics}
               onSelect={(m) => {
                 const current = config?.customKpis || [];
-                const next = [...current];
-                if (!next.includes(m)) {
-                  next.push(m);
-                  setConfig({ customKpis: next });
+                if (!current.includes(m)) {
+                  applyCustomKpis([...current, m]);
                 }
               }}
             />

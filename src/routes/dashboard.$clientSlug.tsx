@@ -1,12 +1,13 @@
 import { createFileRoute, notFound, Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Upload, ArrowLeft } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
-import { fetchClientData, fetchClientFunnel } from "@/lib/api";
+import { fetchClientData, fetchClientFunnel, saveClientKpis } from "@/lib/api";
 import { toISODate } from "@/lib/dates";
 import { datasetFromRows } from "@/lib/csv/parser";
 import type { AnalysisMode, ReportConfig } from "@/lib/csv/types";
+import type { CanonicalKey } from "@/lib/csv/normalize";
 import { DashboardContent } from "./dashboard";
 import { reconstructMariaMaria } from "@/lib/csv/maria-maria";
 
@@ -57,6 +58,20 @@ function ClientDashboard() {
 
   const mode: AnalysisMode = client.dashboardProfile;
 
+  // Métricas extras fixadas: começam do que está salvo no banco; atualização é
+  // otimista (reflete na hora) e persiste em segundo plano.
+  const [customKpis, setCustomKpis] = useState<CanonicalKey[]>(
+    client.dashboardKpis as CanonicalKey[],
+  );
+  useEffect(() => {
+    setCustomKpis(client.dashboardKpis as CanonicalKey[]);
+  }, [client.id, client.dashboardKpis]);
+
+  const onCustomKpisChange = (next: CanonicalKey[]) => {
+    setCustomKpis(next);
+    void saveClientKpis({ data: { clientId: client.id, kpis: next } });
+  };
+
   const dataset = useMemo(() => {
     const ds = datasetFromRows(rows, `${client.name} (histórico)`);
     if (client.dashboardProfile === "maria-maria" && externalWeekly) {
@@ -67,8 +82,8 @@ function ClientDashboard() {
   }, [rows, client.name, client.dashboardProfile, externalWeekly]);
 
   const config: ReportConfig = useMemo(
-    () => ({ clientName: client.name, period: "", mode }),
-    [client.name, mode],
+    () => ({ clientName: client.name, period: "", mode, customKpis }),
+    [client.name, mode, customKpis],
   );
 
   // Período filtrado sem dados: mensagem clara + opção de limpar (não confundir com "sem dados salvos")
@@ -127,6 +142,7 @@ function ClientDashboard() {
       uploadSlug={client.slug}
       onDateRangeChange={onDateRangeChange}
       funnel={funnel}
+      onCustomKpisChange={onCustomKpisChange}
     />
   );
 }

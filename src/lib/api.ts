@@ -215,6 +215,14 @@ export const fetchCommercialData = createServerFn({ method: "GET" })
     return getCommercialPeriods(db, clientId);
   });
 
+export const saveClientKpis = createServerFn({ method: "POST" })
+  .inputValidator((input: { clientId: number; kpis: string[] }) => input)
+  .handler(async ({ data }) => {
+    const { db, saveClientKpis: save } = await serverDeps();
+    await save(db, data.clientId, data.kpis);
+    return { ok: true };
+  });
+
 export const fetchClientFunnel = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string; start?: string; end?: string }) => input)
   .handler(async ({ data }) => {

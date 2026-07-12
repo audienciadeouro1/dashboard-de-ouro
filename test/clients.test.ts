@@ -6,6 +6,7 @@ import {
   createClient,
   updateClient,
   touchLastSynced,
+  saveClientKpis,
 } from "../src/lib/server/clients";
 
 describe("clients repo", () => {
@@ -23,6 +24,24 @@ describe("clients repo", () => {
     expect(created?.dashboardProfile).toBe("sales");
     expect(created?.metaAdAccountId).toBe("999888777");
     expect(created?.lastSyncedAt).toBeNull();
+  });
+
+  it("métricas do dashboard começam vazias e persistem por cliente", async () => {
+    const c = await createClient(env.DB, {
+      name: "KPI Cliente",
+      slug: `kpi-${Date.now()}`,
+      dashboardProfile: "sales",
+    });
+    expect(c.dashboardKpis).toEqual([]);
+
+    await saveClientKpis(env.DB, c.id, ["reach", "cpm"]);
+    const reloaded = await getClientBySlug(env.DB, c.slug);
+    expect(reloaded?.dashboardKpis).toEqual(["reach", "cpm"]);
+
+    // sobrescreve (não acumula)
+    await saveClientKpis(env.DB, c.id, ["frequency"]);
+    const again = await getClientBySlug(env.DB, c.slug);
+    expect(again?.dashboardKpis).toEqual(["frequency"]);
   });
 
   it("busca por slug e retorna null quando não existe", async () => {

@@ -158,6 +158,7 @@ export function DashboardContent({
   uploadSlug,
   onDateRangeChange,
   funnel,
+  onCustomKpisChange,
 }: {
   dataOverride?: { dataset: ParsedDataset; config: ReportConfig };
   uploadSlug?: string;
@@ -165,6 +166,8 @@ export function DashboardContent({
   onDateRangeChange?: (range: { from?: Date; to?: Date } | undefined) => void;
   /** Funil real (Meta + comercial) calculado no servidor; presente só quando há config + dados comerciais. */
   funnel?: FunnelResult | null;
+  /** Dashboards de cliente: persiste as métricas extras no banco. */
+  onCustomKpisChange?: (kpis: CanonicalKey[]) => void;
 } = {}) {
   const store = useStore();
   const dataset = dataOverride?.dataset ?? store.dataset;
@@ -247,7 +250,7 @@ export function DashboardContent({
   if (!dataset || !config) return null;
 
   return (
-    <DashboardContext.Provider value={{ dataset, config }}>
+    <DashboardContext.Provider value={{ dataset, config, onCustomKpisChange }}>
       <div className="min-h-screen">
       <BrandHeader
         showHomeLink

@@ -15,6 +15,8 @@ export interface Client {
   contractStart: string | null;
   lastSyncedAt: string | null;
   createdAt: string;
+  /** Métricas extras fixadas neste dashboard (chaves de CanonicalKey). */
+  dashboardKpis: string[];
 }
 
 export interface ClientInput {
@@ -38,6 +40,17 @@ interface ClientRow {
   contract_start: string | null;
   last_synced_at: string | null;
   created_at: string;
+  dashboard_kpis: string | null;
+}
+
+function parseKpis(raw: string | null): string[] {
+  if (!raw) return [];
+  try {
+    const v = JSON.parse(raw);
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 function toClient(r: ClientRow): Client {
@@ -52,11 +65,12 @@ function toClient(r: ClientRow): Client {
     contractStart: r.contract_start,
     lastSyncedAt: r.last_synced_at,
     createdAt: r.created_at,
+    dashboardKpis: parseKpis(r.dashboard_kpis),
   };
 }
 
 const COLS =
-  "id, name, slug, logo_url, color, meta_ad_account_id, dashboard_profile, contract_start, last_synced_at, created_at";
+  "id, name, slug, logo_url, color, meta_ad_account_id, dashboard_profile, contract_start, last_synced_at, created_at, dashboard_kpis";
 
 export async function listClients(db: D1Database): Promise<Client[]> {
   const { results } = await db
@@ -122,6 +136,18 @@ export async function updateClient(
     .first<ClientRow>();
   if (!row) throw new Error("Cliente não encontrado.");
   return toClient(row);
+}
+
+/** Salva as métricas extras fixadas no dashboard do cliente (array de chaves). */
+export async function saveClientKpis(
+  db: D1Database,
+  id: number,
+  kpis: string[],
+): Promise<void> {
+  await db
+    .prepare("UPDATE clients SET dashboard_kpis = ? WHERE id = ?")
+    .bind(JSON.stringify(kpis), id)
+    .run();
 }
 
 export async function touchLastSynced(db: D1Database, id: number): Promise<void> {
