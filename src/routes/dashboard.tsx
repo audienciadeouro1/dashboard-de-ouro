@@ -118,7 +118,9 @@ import { DiagnosisTab } from "@/components/dashboard/DiagnosisTab";
 import { DataQualityTab } from "@/components/dashboard/DataQualityTab";
 import { ReportTab } from "@/components/dashboard/ReportTab";
 import { FunnelTab } from "@/components/dashboard/FunnelTab";
+import { CompareTab } from "@/components/dashboard/CompareTab";
 import type { FunnelResult } from "@/lib/metrics/funnel";
+import { normalizeDateToISO } from "@/lib/dates";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
@@ -194,6 +196,18 @@ export function DashboardContent({
   const showFunnel = Boolean(
     funnel && funnel.stages.length >= 2 && funnel.stages[0].count > 0,
   );
+
+  // Comparador: só nos dashboards de cliente (têm slug) e com dados datados.
+  const showCompare = Boolean(uploadSlug && dataset.hasDate);
+  const maxDate = useMemo(() => {
+    if (!dataset.hasDate) return null;
+    let max: string | null = null;
+    for (const r of dataset.rows) {
+      const iso = normalizeDateToISO(r.date);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(iso) && (!max || iso > max)) max = iso;
+    }
+    return max;
+  }, [dataset.rows, dataset.hasDate]);
 
   // listas únicas
   const allCampaigns = useMemo(
@@ -360,6 +374,7 @@ export function DashboardContent({
             {[
               ["overview", "Visão Geral"],
               ...(showFunnel ? [["funnel", "Funil"]] : []),
+              ...(showCompare ? [["compare", "Comparar"]] : []),
               ["campaigns", "Campanhas"],
               ["adsets", "Conjuntos"],
               ["ads", "Anúncios"],
@@ -392,6 +407,11 @@ export function DashboardContent({
           {showFunnel && funnel && (
             <TabsContent value="funnel">
               <FunnelTab funnel={funnel} />
+            </TabsContent>
+          )}
+          {showCompare && uploadSlug && (
+            <TabsContent value="compare">
+              <CompareTab slug={uploadSlug} maxDate={maxDate} />
             </TabsContent>
           )}
           <TabsContent value="campaigns">
