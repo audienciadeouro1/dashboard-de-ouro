@@ -152,15 +152,23 @@ function useStore() {
 export function DashboardContent({
   dataOverride,
   uploadSlug,
+  onDateRangeChange,
 }: {
   dataOverride?: { dataset: ParsedDataset; config: ReportConfig };
   uploadSlug?: string;
+  /** Dashboards de cliente: propaga o período para o servidor (search params). Análise avulsa não passa. */
+  onDateRangeChange?: (range: { from?: Date; to?: Date } | undefined) => void;
 } = {}) {
   const store = useStore();
   const dataset = dataOverride?.dataset ?? store.dataset;
   const config = dataOverride?.config ?? store.config;
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>();
+  // Atualiza o filtro local (memória) e, nos dashboards de cliente, também o servidor.
+  const handleDateRange = (range: { from?: Date; to?: Date } | undefined) => {
+    setDateRange(range);
+    onDateRangeChange?.(range);
+  };
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
   const [adSetFilter, setAdSetFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -292,7 +300,7 @@ export function DashboardContent({
               className="pl-9 bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
             />
           </div>
-          <DateRangePicker date={dateRange} setDate={setDateRange} />
+          <DateRangePicker date={dateRange} setDate={handleDateRange} />
           <Select value={campaignFilter} onValueChange={setCampaignFilter}>
             <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
               <SelectValue placeholder="Campanha" />
