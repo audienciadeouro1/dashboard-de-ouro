@@ -40,7 +40,10 @@ export type CanonicalKey =
   | "engagement"
   | "reactions"
   | "comments"
-  | "shares";
+  | "shares"
+  | "viewContent"
+  | "addToCart"
+  | "initiateCheckout";
 
 const COLUMN_MAP: Record<CanonicalKey, string[]> = {
   campaignName: ["campaign name", "nome da campanha", "campanha"],
@@ -323,6 +326,28 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
   ],
   comments: ["post comments", "comentários da publicação", "comentarios", "comments"],
   shares: ["post shares", "compartilhamentos da publicação", "compartilhamentos", "shares"],
+  // Eventos de pixel (e-commerce) — ex.: Aki Sushi
+  viewContent: [
+    "visualizações do conteúdo no site",
+    "visualizações de conteúdo",
+    "content views",
+    "view content",
+    "website content views",
+  ],
+  addToCart: [
+    "adições ao carrinho no site",
+    "adições ao carrinho",
+    "adds to cart",
+    "add to cart",
+    "website adds to cart",
+  ],
+  initiateCheckout: [
+    "finalizações da compra iniciadas no site",
+    "finalizações de compra iniciadas",
+    "checkouts initiated",
+    "website checkouts initiated",
+    "initiate checkout",
+  ],
 };
 
 const norm = (s: string) =>

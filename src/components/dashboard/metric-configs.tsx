@@ -40,6 +40,21 @@ export const METRIC_CONFIGS: Record<
   cpm: { label: "CPM", icon: <Target className="w-4 h-4" />, formatter: fmtBRL },
   results: { label: "Resultados", icon: <Target className="w-4 h-4" />, formatter: fmtNum },
   purchases: { label: "Compras", icon: <ShoppingBag className="w-4 h-4" />, formatter: fmtNum },
+  viewContent: {
+    label: "Visualizações de conteúdo",
+    icon: <Eye className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
+  addToCart: {
+    label: "Adições ao carrinho",
+    icon: <ShoppingBag className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
+  initiateCheckout: {
+    label: "Finalizações iniciadas",
+    icon: <MousePointerClick className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
   cpa: { label: "CPA", icon: <Target className="w-4 h-4" />, formatter: fmtBRL },
   conversionValue: {
     label: "Faturamento",

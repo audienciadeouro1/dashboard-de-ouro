@@ -32,6 +32,9 @@ const NUMERIC_KEYS: CanonicalKey[] = [
   "shares",
   "budget",
   "averageConversionValue",
+  "viewContent",
+  "addToCart",
+  "initiateCheckout",
 ];
 
 const STRING_KEYS: CanonicalKey[] = [

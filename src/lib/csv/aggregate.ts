@@ -18,6 +18,9 @@ export interface Aggregated {
   video75: number;
   video95: number;
   engagement: number;
+  viewContent: number;
+  addToCart: number;
+  initiateCheckout: number;
   budget: number;
   // metadados
   delivery: string;
@@ -59,6 +62,9 @@ export function aggregate(rows: AdRow[], dimension: keyof AdRow): Aggregated[] {
         video75: 0,
         video95: 0,
         engagement: 0,
+        viewContent: 0,
+        addToCart: 0,
+        initiateCheckout: 0,
         budget: 0,
         delivery: r.delivery || "",
         budgetType: r.budgetType || "",
@@ -91,6 +97,9 @@ export function aggregate(rows: AdRow[], dimension: keyof AdRow): Aggregated[] {
     a.video75 += r.video75;
     a.video95 += r.video95;
     a.engagement += r.engagement;
+    a.viewContent += r.viewContent || 0;
+    a.addToCart += r.addToCart || 0;
+    a.initiateCheckout += r.initiateCheckout || 0;
     // Se o orçamento for fixo por conjunto/campanha, somar pode inflar.
     // Mas AdRow é por dia, e o orçamento no CSV da Meta é o valor atual.
     // Tomaremos o maior orçamento encontrado para a entidade.
@@ -127,6 +136,9 @@ export interface Totals {
   video75: number;
   video95: number;
   engagement: number;
+  viewContent: number;
+  addToCart: number;
+  initiateCheckout: number;
   budget: number;
   ctr: number;
   cpc: number;
@@ -157,6 +169,9 @@ export function totals(rows: AdRow[]): Totals {
     video75: 0,
     video95: 0,
     engagement: 0,
+    viewContent: 0,
+    addToCart: 0,
+    initiateCheckout: 0,
     budget: 0,
     ctr: 0,
     cpc: 0,
@@ -189,6 +204,9 @@ export function totals(rows: AdRow[]): Totals {
     t.video75 += r.video75;
     t.video95 += r.video95;
     t.engagement += r.engagement;
+    t.viewContent += r.viewContent || 0;
+    t.addToCart += r.addToCart || 0;
+    t.initiateCheckout += r.initiateCheckout || 0;
 
     if (r.adSetName) {
       uniqueBudgets.set(r.adSetName, Math.max(uniqueBudgets.get(r.adSetName) || 0, r.budget));

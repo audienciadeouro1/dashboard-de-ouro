@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { aggregate, totals, timeSeries } from "../src/lib/csv/aggregate";
+import { buildColumnIndex } from "../src/lib/csv/normalize";
 import type { AdRow } from "../src/lib/csv/types";
 
 function makeRow(overrides: Partial<AdRow> = {}): AdRow {
@@ -43,6 +44,9 @@ function makeRow(overrides: Partial<AdRow> = {}): AdRow {
     reactions: 0,
     comments: 0,
     shares: 0,
+    viewContent: 0,
+    addToCart: 0,
+    initiateCheckout: 0,
     ctrTodos: 0,
     rawData: {},
     ...overrides,
@@ -64,6 +68,31 @@ const ROWS: AdRow[] = [
     conversations: 2,
   }),
 ];
+
+describe("eventos de pixel (e-commerce)", () => {
+  it("reconhece as colunas de pixel do CSV do Meta (Aki Sushi)", () => {
+    const { index } = buildColumnIndex([
+      "Impressões",
+      "Visualizações do conteúdo no site",
+      "Adições ao carrinho",
+      "Finalizações da compra iniciadas no site",
+      "Compras",
+    ]);
+    expect(index.viewContent).toBe("Visualizações do conteúdo no site");
+    expect(index.addToCart).toBe("Adições ao carrinho");
+    expect(index.initiateCheckout).toBe("Finalizações da compra iniciadas no site");
+  });
+
+  it("totals soma os eventos de pixel", () => {
+    const t = totals([
+      makeRow({ viewContent: 44, addToCart: 23, initiateCheckout: 14 }),
+      makeRow({ viewContent: 6, addToCart: 0, initiateCheckout: 0 }),
+    ]);
+    expect(t.viewContent).toBe(50);
+    expect(t.addToCart).toBe(23);
+    expect(t.initiateCheckout).toBe(14);
+  });
+});
 
 describe("golden-master: totals/aggregate/timeSeries preservam os números atuais", () => {
   it("totals soma e deriva exatamente como hoje", () => {

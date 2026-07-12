@@ -94,6 +94,10 @@ export interface AdRow {
   reactions: number;
   comments: number;
   shares: number;
+  // Eventos de pixel (e-commerce)
+  viewContent: number;
+  addToCart: number;
+  initiateCheckout: number;
   // Métricas técnicas adicionais para Maria Maria
   ctrTodos: number;
   // Cópia dos dados originais para não perder nada
