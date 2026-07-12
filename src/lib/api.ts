@@ -5,16 +5,17 @@ import type { AdRow } from "./csv/types";
 // Imports dinâmicos dentro dos handlers: executam apenas no servidor.
 // Imports estáticos de código de /server/ são bloqueados no bundle do cliente.
 async function serverDeps() {
-  const [{ getDb }, clients, insights, external, imports, metrics] = await Promise.all([
+  const [{ getDb }, clients, insights, external, imports, metrics, quality] = await Promise.all([
     import("./server/db"),
     import("./server/clients"),
     import("./server/insights"),
     import("./server/external"),
     import("./server/imports"),
     import("./server/metrics"),
+    import("./server/quality"),
   ]);
   const db = await getDb();
-  return { db, ...clients, ...insights, ...external, ...imports, ...metrics };
+  return { db, ...clients, ...insights, ...external, ...imports, ...metrics, ...quality };
 }
 
 /** Menor e maior data de um conjunto de linhas (datas em YYYY-MM-DD ordenam como texto). */
@@ -73,6 +74,15 @@ export const fetchClientMetrics = createServerFn({ method: "GET" })
       getClientTimeSeries(db, client.id, range),
     ]);
     return { totals, series };
+  });
+
+export const fetchDataQuality = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string; start?: string; end?: string }) => input)
+  .handler(async ({ data }) => {
+    const { db, getClientBySlug, computeQuality } = await serverDeps();
+    const client = await getClientBySlug(db, data.slug);
+    if (!client) return null;
+    return computeQuality(db, client.id, { start: data.start, end: data.end });
   });
 
 export const addClient = createServerFn({ method: "POST" })
