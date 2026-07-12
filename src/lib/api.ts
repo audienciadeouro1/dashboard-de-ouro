@@ -1,21 +1,34 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { Client, ClientInput } from "./server/clients";
-import type { AdRow } from "./csv/types";
+import type { AdRow, FunnelConfig } from "./csv/types";
 
 // Imports dinâmicos dentro dos handlers: executam apenas no servidor.
 // Imports estáticos de código de /server/ são bloqueados no bundle do cliente.
 async function serverDeps() {
-  const [{ getDb }, clients, insights, external, imports, metrics, quality] = await Promise.all([
-    import("./server/db"),
-    import("./server/clients"),
-    import("./server/insights"),
-    import("./server/external"),
-    import("./server/imports"),
-    import("./server/metrics"),
-    import("./server/quality"),
-  ]);
+  const [{ getDb }, clients, insights, external, imports, metrics, quality, commercial, funnelConfig] =
+    await Promise.all([
+      import("./server/db"),
+      import("./server/clients"),
+      import("./server/insights"),
+      import("./server/external"),
+      import("./server/imports"),
+      import("./server/metrics"),
+      import("./server/quality"),
+      import("./server/commercial"),
+      import("./server/funnel-config"),
+    ]);
   const db = await getDb();
-  return { db, ...clients, ...insights, ...external, ...imports, ...metrics, ...quality };
+  return {
+    db,
+    ...clients,
+    ...insights,
+    ...external,
+    ...imports,
+    ...metrics,
+    ...quality,
+    ...commercial,
+    ...funnelConfig,
+  };
 }
 
 /** Menor e maior data de um conjunto de linhas (datas em YYYY-MM-DD ordenam como texto). */
@@ -142,6 +155,60 @@ export const fetchImportHistory = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { db, listImports } = await serverDeps();
     return listImports(db, data);
+  });
+
+// --- Fase 2A: dados comerciais genéricos + configuração de funil por cliente ---
+
+export const fetchFunnelConfig = createServerFn({ method: "GET" })
+  .inputValidator((clientId: number) => clientId)
+  .handler(async ({ data: clientId }) => {
+    const { db, getFunnelConfig } = await serverDeps();
+    return getFunnelConfig(db, clientId);
+  });
+
+export const persistFunnelConfig = createServerFn({ method: "POST" })
+  .inputValidator((input: { clientId: number; config: FunnelConfig }) => input)
+  .handler(async ({ data }) => {
+    const { db, saveFunnelConfig } = await serverDeps();
+    await saveFunnelConfig(db, data.clientId, data.config);
+    return { ok: true };
+  });
+
+export const importCommercialCsv = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { clientId: number; rows: Record<string, string>[]; refYear: number; fileName?: string }) =>
+      input,
+  )
+  .handler(async ({ data }): Promise<{ saved: number }> => {
+    const { db, getFunnelConfig, upsertCommercialPeriods, recordImport } = await serverDeps();
+    const config = await getFunnelConfig(db, data.clientId);
+    if (!config) throw new Error("Configure o mapeamento do funil antes de importar.");
+    const { buildCommercialPeriods } = await import("./csv/commercial");
+    const periods = buildCommercialPeriods(data.rows, config, data.refYear);
+    const saved = await upsertCommercialPeriods(db, data.clientId, periods);
+    await recordImport(db, data.clientId, {
+      kind: "external_weekly",
+      fileName: data.fileName,
+      periodStart: periods[0]?.startDate ?? null,
+      periodEnd: periods[periods.length - 1]?.endDate ?? null,
+      rowsSaved: saved,
+    });
+    return { saved };
+  });
+
+export const fetchCommercialData = createServerFn({ method: "GET" })
+  .inputValidator((clientId: number) => clientId)
+  .handler(async ({ data: clientId }) => {
+    const { db, getCommercialPeriods } = await serverDeps();
+    return getCommercialPeriods(db, clientId);
+  });
+
+export const runCommercialBackfill = createServerFn({ method: "POST" })
+  .inputValidator((clientId: number) => clientId)
+  .handler(async ({ data: clientId }) => {
+    const { db } = await serverDeps();
+    const { backfillCommercialFromExternal } = await import("./server/commercial-backfill");
+    return backfillCommercialFromExternal(db, clientId);
   });
 
 import { getCookie, setCookie } from "@tanstack/react-start/server";
