@@ -1,6 +1,13 @@
 import type { D1Database } from "@cloudflare/workers-types";
 
-export type DashboardProfile = "pixel_sales" | "whatsapp_external";
+export type DashboardProfile =
+  | "sales"
+  | "leads"
+  | "awareness"
+  | "engagement"
+  | "video"
+  | "custom"
+  | "maria-maria";
 
 export interface Client {
   id: number;

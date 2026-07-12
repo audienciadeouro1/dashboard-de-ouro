@@ -7,6 +7,7 @@ import { fetchClientData } from "@/lib/api";
 import { datasetFromRows } from "@/lib/csv/parser";
 import type { AnalysisMode, ReportConfig } from "@/lib/csv/types";
 import { DashboardContent } from "./dashboard";
+import { reconstructMariaMaria } from "@/lib/csv/maria-maria";
 
 export const Route = createFileRoute("/dashboard/$clientSlug")({
   head: () => ({
@@ -21,14 +22,23 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
 });
 
 function ClientDashboard() {
-  const { client, rows } = Route.useLoaderData();
+  const { client, rows, externalWeekly } = Route.useLoaderData();
 
-  const mode: AnalysisMode = client.dashboardProfile === "pixel_sales" ? "sales" : "leads";
+  const mode: AnalysisMode =
+    client.dashboardProfile === "pixel_sales"
+      ? "sales"
+      : client.dashboardProfile === "whatsapp_external" || client.dashboardProfile === "maria-maria"
+        ? "maria-maria"
+        : (client.dashboardProfile as AnalysisMode);
 
-  const dataset = useMemo(
-    () => datasetFromRows(rows, `${client.name} (histórico)`),
-    [rows, client.name],
-  );
+  const dataset = useMemo(() => {
+    const ds = datasetFromRows(rows, `${client.name} (histórico)`);
+    if ((client.dashboardProfile === "maria-maria" || client.dashboardProfile === "whatsapp_external") && externalWeekly) {
+      const mmDataset = reconstructMariaMaria(ds, externalWeekly);
+      return { ...ds, mariaMaria: mmDataset };
+    }
+    return ds;
+  }, [rows, client.name, client.dashboardProfile, externalWeekly]);
 
   const config: ReportConfig = useMemo(
     () => ({ clientName: client.name, period: "", mode }),

@@ -34,7 +34,7 @@ export function NewClientDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [profile, setProfile] = useState<DashboardProfile>("pixel_sales");
+  const [profile, setProfile] = useState<DashboardProfile>("sales");
   const [metaAccountId, setMetaAccountId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,8 +94,13 @@ export function NewClientDialog() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pixel_sales">Vendas via Pixel</SelectItem>
-                <SelectItem value="whatsapp_external">WhatsApp + Dados Externos</SelectItem>
+                <SelectItem value="sales">Vendas / E-commerce</SelectItem>
+                <SelectItem value="leads">Conversas / Leads</SelectItem>
+                <SelectItem value="awareness">Alcance / Reconhecimento</SelectItem>
+                <SelectItem value="engagement">Engajamento</SelectItem>
+                <SelectItem value="video">Vídeo / Visualizações</SelectItem>
+                <SelectItem value="custom">Personalizado</SelectItem>
+                <SelectItem value="maria-maria">Maria Maria (Salão + WhatsApp)</SelectItem>
               </SelectContent>
             </Select>
           </div>

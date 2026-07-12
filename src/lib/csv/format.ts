@@ -5,6 +5,14 @@ export const fmtBRL = (n: number): string =>
     maximumFractionDigits: 2,
   }).format(Number.isFinite(n) ? n : 0);
 
+export const fmtBRLNoCents = (n: number): string =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+  }).format(Number.isFinite(n) ? n : 0);
+
 export const fmtNum = (n: number, digits = 0): string =>
   new Intl.NumberFormat("pt-BR", {
     maximumFractionDigits: digits,

@@ -1,5 +1,7 @@
-import { Link } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { LogOut } from "lucide-react";
+import { Button } from "./ui/button";
+import { logout } from "@/lib/api";
 
 interface BrandHeaderProps {
   showHomeLink?: boolean;
@@ -7,6 +9,19 @@ interface BrandHeaderProps {
 }
 
 export function BrandHeader({ showHomeLink = false, right }: BrandHeaderProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const showLogout = location.pathname !== "/login";
+
+  async function handleLogout() {
+    try {
+      await logout();
+      navigate({ to: "/login" });
+    } catch (e) {
+      console.error("Erro ao fazer logout", e);
+    }
+  }
+
   const brand = (
     <div className="relative flex items-center">
       <img
@@ -27,7 +42,19 @@ export function BrandHeader({ showHomeLink = false, right }: BrandHeaderProps) {
         ) : (
           <div className="flex items-center h-full group">{brand}</div>
         )}
-        {right}
+        <div className="flex items-center gap-4">
+          {right}
+          {showLogout && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-muted-foreground hover:text-red-400 hover:bg-red-500/5 gap-1.5"
+            >
+              <LogOut className="w-4.5 h-4.5" /> <span className="hidden sm:inline">Sair</span>
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, notFound, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, notFound, Link, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, AlertCircle } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
@@ -10,9 +10,16 @@ import { parseCsvFile } from "@/lib/csv/parser";
 import type { AnalysisMode, ParsedDataset } from "@/lib/csv/types";
 import { processMariaMaria } from "@/lib/csv/maria-maria";
 import { setData } from "@/lib/store";
-import { fetchClientBySlug, ingestCsvRows } from "@/lib/api";
+import { fetchClientBySlug, ingestCsvRows, ingestExternalWeeklyData, checkSession } from "@/lib/api";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/upload/$clientSlug")({
+  beforeLoad: async () => {
+    const session = await checkSession();
+    if (!session.authenticated) {
+      throw redirect({ to: "/login" });
+    }
+  },
   loader: async ({ params }) => {
     const client = await fetchClientBySlug({ data: params.clientSlug });
     if (!client) throw notFound();
@@ -48,6 +55,7 @@ function UploadPage() {
     }
     function onDrop(e: DragEvent) {
       e.preventDefault();
+      if (isMariaMaria) return;
       const f = e.dataTransfer?.files?.[0];
       if (f && (f.type === "text/csv" || f.name.toLowerCase().endsWith(".csv"))) {
         void handleFileA(f);
@@ -60,7 +68,7 @@ function UploadPage() {
       window.removeEventListener("drop", onDrop);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isMariaMaria]);
 
   async function handleFileA(f: File) {
     setError(null);
@@ -85,9 +93,6 @@ function UploadPage() {
     setLoading(true);
     setError(null);
     try {
-      // Persiste no banco ANTES de navegar (fonte da verdade)
-      await ingestCsvRows({ data: { clientId: client.id, rows: parsed.rows } });
-
       let finalDataset = parsed;
       if (isMariaMaria) {
         if (!fileB) {
@@ -97,14 +102,30 @@ function UploadPage() {
         }
         const mmDataset = await processMariaMaria(parsed, fileB);
         finalDataset = { ...parsed, mariaMaria: mmDataset };
-        // Maria Maria depende do cruzamento com a planilha do salão (em memória),
-        // então abre o dashboard baseado no store para preservar esses dados.
+        
+        // Salva dados diários do Meta:
+        await ingestCsvRows({ data: { clientId: client.id, rows: parsed.rows } });
+        
+        // Salva dados semanais do Salão no D1:
+        const externalWeeks = mmDataset.weeks.map((w) => ({
+          startDate: format(new Date(w.startDate), "yyyy-MM-dd"),
+          endDate: format(new Date(w.endDate), "yyyy-MM-dd"),
+          contatosWhatsapp: w.salonData.contatosWhatsapp,
+          agendamentos: w.salonData.agendamentos,
+          agendamentosComServico: w.salonData.agendamentosComServico,
+          faturamento: w.salonData.totalFaturamento,
+          ticketMedio: w.salonData.ticketMedio,
+        }));
+        await ingestExternalWeeklyData({ data: { clientId: client.id, weeks: externalWeeks } });
+
+        // Salva também no store local (para redundância) e navega para a rota persistida
         setData(finalDataset, { clientName: client.name, period, mode });
-        navigate({ to: "/dashboard" });
+        navigate({ to: "/dashboard/$clientSlug", params: { clientSlug: client.slug } });
         return;
       }
       // Demais clientes: dados já persistidos no banco — abre o dashboard do
       // cliente, que relê tudo do D1 (acumulado, não só o upload atual).
+      await ingestCsvRows({ data: { clientId: client.id, rows: parsed.rows } });
       setData(finalDataset, { clientName: client.name, period, mode });
       navigate({ to: "/dashboard/$clientSlug", params: { clientSlug: client.slug } });
     } catch (e) {

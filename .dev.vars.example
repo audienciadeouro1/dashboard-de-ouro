@@ -1,0 +1,4 @@
+# Copie para .dev.vars (gitignorado) e preencha para desenvolvimento local.
+# Em produção, configure com: wrangler secret put AUTH_EMAIL / AUTH_PASSWORD
+AUTH_EMAIL=seu-email@exemplo.com
+AUTH_PASSWORD=sua-senha-forte

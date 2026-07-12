@@ -18,14 +18,14 @@ export function GoldTooltip({ active, payload, label, formatter }: TooltipProps)
       p.dataKey === "metaData.spend" ||
       p.name === "Investimento" ||
       p.name === "Gasto Meta" ||
-      p.name === "Gasto"
+      p.name === "Gasto",
   );
   const revenueEntry = payload.find(
     (p) =>
       p.dataKey === "conversionValue" ||
       p.dataKey === "faturamento" ||
       p.dataKey === "salonData.totalFaturamento" ||
-      p.name === "Faturamento"
+      p.name === "Faturamento",
   );
 
   const gasto = typeof spendEntry?.value === "number" ? spendEntry.value : 0;

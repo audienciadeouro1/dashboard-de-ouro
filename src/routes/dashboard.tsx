@@ -1,5 +1,5 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
+import { useEffect, useMemo, useState, useSyncExternalStore, createContext, useContext } from "react";
 import {
   ArrowLeft,
   DollarSign,
@@ -68,10 +68,11 @@ import { Calendar as CalendarIcon, Calendar } from "lucide-react"; // Renomeando
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"; // Shadcn component
 
 import { getData, subscribe, setConfig } from "@/lib/store";
+import { checkSession } from "@/lib/api";
 import { aggregate, timeSeries, totals as computeTotals, parseDate } from "@/lib/csv/aggregate";
 import type { Aggregated, Totals } from "@/lib/csv/aggregate";
 import { diagnoseCampaigns, diagnoseAccount } from "@/lib/csv/diagnostics";
-import { fmtBRL, fmtNum, fmtPct, fmtCompact } from "@/lib/csv/format";
+import { fmtBRL, fmtBRLNoCents, fmtNum, fmtPct, fmtCompact } from "@/lib/csv/format";
 import type { AdRow, AnalysisMode, ParsedDataset, ReportConfig } from "@/lib/csv/types";
 import type { CanonicalKey } from "@/lib/csv/normalize";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,12 @@ import {
 } from "@/components/ui/command";
 
 export const Route = createFileRoute("/dashboard")({
+  beforeLoad: async () => {
+    const session = await checkSession();
+    if (!session.authenticated) {
+      throw redirect({ to: "/login" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Dashboard — Dashboard de Ouro" },
@@ -219,6 +226,20 @@ function useStore() {
   );
 }
 
+interface DashboardContextType {
+  dataset: ParsedDataset;
+  config: ReportConfig;
+}
+
+const DashboardContext = createContext<DashboardContextType | null>(null);
+
+export function useDashboard() {
+  const ctx = useContext(DashboardContext);
+  if (!ctx) throw new Error("useDashboard deve ser usado dentro de um DashboardProvider");
+  return ctx;
+}
+
+
 function DateRangePicker({
   date,
   setDate,
@@ -226,15 +247,24 @@ function DateRangePicker({
   date: { from?: Date; to?: Date } | undefined;
   setDate: (date: { from?: Date; to?: Date } | undefined) => void;
 }) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2 w-full sm:w-auto">
       <Popover>
         <PopoverTrigger asChild>
           <Button
             id="date"
             variant={"outline"}
             className={cn(
-              "w-[260px] justify-start text-left font-normal bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)] hover:bg-[oklch(0.83_0.16_88_/_0.1)]",
+              "w-full sm:w-[260px] justify-start text-left font-normal bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)] hover:bg-[oklch(0.83_0.16_88_/_0.1)]",
               !date && "text-muted-foreground",
             )}
           >
@@ -263,7 +293,7 @@ function DateRangePicker({
             defaultMonth={date?.from}
             selected={date}
             onSelect={setDate}
-            numberOfMonths={2}
+            numberOfMonths={isMobile ? 1 : 2}
             locale={ptBR}
           />
           <div className="p-3 border-t border-[oklch(0.83_0.16_88_/_0.2)] bg-[oklch(0.16_0_0)]">
@@ -359,7 +389,8 @@ export function DashboardContent({
   if (!dataset || !config) return null;
 
   return (
-    <div className="min-h-screen">
+    <DashboardContext.Provider value={{ dataset, config }}>
+      <div className="min-h-screen">
       <BrandHeader
         showHomeLink
         right={
@@ -370,7 +401,7 @@ export function DashboardContent({
               onClick={() => window.print()}
               className="text-foreground/80 hover:text-[oklch(0.83_0.16_88)]"
             >
-              <Printer className="w-4 h-4 mr-1.5" /> Imprimir
+              <Printer className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Imprimir</span>
             </Button>
             <Button
               asChild
@@ -380,11 +411,11 @@ export function DashboardContent({
             >
               {uploadSlug ? (
                 <Link to="/upload/$clientSlug" params={{ clientSlug: uploadSlug }}>
-                  <RefreshCw className="w-4 h-4 mr-1.5" /> Atualizar dados
+                  <RefreshCw className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Atualizar dados</span>
                 </Link>
               ) : (
                 <Link to="/">
-                  <RefreshCw className="w-4 h-4 mr-1.5" /> Trocar arquivo
+                  <RefreshCw className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Trocar arquivo</span>
                 </Link>
               )}
             </Button>
@@ -415,7 +446,7 @@ export function DashboardContent({
 
         {/* Filters */}
         <div className="glass-card rounded-xl p-4 flex flex-wrap items-center gap-3 no-print">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative w-full md:flex-1 md:min-w-[200px]">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar campanha, conjunto ou anúncio..."
@@ -426,7 +457,7 @@ export function DashboardContent({
           </div>
           <DateRangePicker date={dateRange} setDate={setDateRange} />
           <Select value={campaignFilter} onValueChange={setCampaignFilter}>
-            <SelectTrigger className="w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
+            <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
               <SelectValue placeholder="Campanha" />
             </SelectTrigger>
             <SelectContent>
@@ -440,7 +471,7 @@ export function DashboardContent({
           </Select>
           {dataset.hasAdSet && (
             <Select value={adSetFilter} onValueChange={setAdSetFilter}>
-              <SelectTrigger className="w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
+              <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
                 <SelectValue placeholder="Conjunto" />
               </SelectTrigger>
               <SelectContent>
@@ -457,7 +488,7 @@ export function DashboardContent({
 
         {/* Tabs */}
         <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-          <TabsList className="bg-[oklch(0.14_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] p-1 h-auto flex-wrap no-print">
+          <TabsList className="bg-[oklch(0.14_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] p-1 h-12 flex flex-row overflow-x-auto justify-start max-w-full no-scrollbar flex-nowrap no-print w-full sm:w-auto">
             {[
               ["overview", "Visão Geral"],
               ["campaigns", "Campanhas"],
@@ -471,7 +502,7 @@ export function DashboardContent({
               <TabsTrigger
                 key={id}
                 value={id}
-                className="data-[state=active]:bg-[oklch(0.83_0.16_88_/_0.15)] data-[state=active]:text-[oklch(0.88_0.18_92)] text-xs md:text-sm"
+                className="data-[state=active]:bg-[oklch(0.83_0.16_88_/_0.15)] data-[state=active]:text-[oklch(0.88_0.18_92)] text-xs md:text-sm flex-shrink-0"
               >
                 {label}
               </TabsTrigger>
@@ -530,6 +561,7 @@ export function DashboardContent({
         </Tabs>
       </main>
     </div>
+    </DashboardContext.Provider>
   );
 }
 
@@ -548,11 +580,14 @@ function getKpis(
   mode: AnalysisMode,
   customKpis: CanonicalKey[] = [],
   byCampaign: Aggregated[] = [],
+  isMobile = false,
 ): KpiDef[] {
+  const formatBRL = (v: number) => isMobile ? fmtBRLNoCents(v) : fmtBRL(v);
+
   const base: KpiDef[] = [
     {
       label: "Investimento",
-      value: fmtBRL(totals.spend),
+      value: formatBRL(totals.spend),
       icon: <DollarSign className="w-4 h-4" />,
       key: "spend",
     },
@@ -564,7 +599,7 @@ function getKpis(
       modeKpis = [
         {
           label: "Faturamento",
-          value: fmtBRL(totals.conversionValue),
+          value: formatBRL(totals.conversionValue),
           icon: <TrendingUp className="w-4 h-4" />,
           key: "conversionValue",
         },
@@ -588,18 +623,18 @@ function getKpis(
         },
         {
           label: "CPA",
-          value: fmtBRL(totals.cpa),
+          value: formatBRL(totals.cpa),
           icon: <Target className="w-4 h-4" />,
           key: "cpa",
         },
         {
           label: "Ticket médio",
-          value: fmtBRL(totals.ticketMedio),
+          value: formatBRL(totals.ticketMedio),
           icon: <DollarSign className="w-4 h-4" />,
         },
         {
           label: "CPM",
-          value: fmtBRL(totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0),
+          value: formatBRL(totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0),
           icon: <Eye className="w-4 h-4" />,
           key: "cpm",
         },
@@ -617,7 +652,7 @@ function getKpis(
         },
         {
           label: "CPC",
-          value: fmtBRL(totals.clicks > 0 ? totals.spend / totals.clicks : 0),
+          value: formatBRL(totals.clicks > 0 ? totals.spend / totals.clicks : 0),
           icon: <MousePointerClick className="w-4 h-4" />,
           key: "cpc",
         },
@@ -635,7 +670,7 @@ function getKpis(
         },
         {
           label: "Custo por resultado",
-          value: fmtBRL(totals.costPerResult || totals.cpa),
+          value: formatBRL(totals.costPerResult || totals.cpa),
           icon: <Target className="w-4 h-4" />,
           key: "costPerResult",
         },
@@ -651,7 +686,7 @@ function getKpis(
         },
         {
           label: "Custo por conversa",
-          value: fmtBRL(totals.costPerConversation),
+          value: formatBRL(totals.costPerConversation),
           icon: <Target className="w-4 h-4" />,
           key: "costPerConversation",
         },
@@ -669,7 +704,7 @@ function getKpis(
         },
         {
           label: "CPC",
-          value: fmtBRL(totals.cpc),
+          value: formatBRL(totals.cpc),
           icon: <DollarSign className="w-4 h-4" />,
           key: "cpc",
         },
@@ -679,7 +714,7 @@ function getKpis(
           icon: <Users className="w-4 h-4" />,
           key: "reach",
         },
-        { label: "CPM", value: fmtBRL(totals.cpm), icon: <Eye className="w-4 h-4" />, key: "cpm" },
+        { label: "CPM", value: formatBRL(totals.cpm), icon: <Eye className="w-4 h-4" />, key: "cpm" },
       ];
       break;
     case "awareness":
@@ -698,7 +733,7 @@ function getKpis(
         },
         {
           label: "CPM",
-          value: fmtBRL(totals.cpm),
+          value: formatBRL(totals.cpm),
           icon: <Target className="w-4 h-4" />,
           key: "cpm",
         },
@@ -733,7 +768,7 @@ function getKpis(
         },
         {
           label: "Custo por engajamento",
-          value: fmtBRL(totals.spend / Math.max(1, totals.engagement || totals.clicks)),
+          value: formatBRL(totals.spend / Math.max(1, totals.engagement || totals.clicks)),
           icon: <Target className="w-4 h-4" />,
         },
         {
@@ -742,7 +777,7 @@ function getKpis(
           icon: <TrendingUp className="w-4 h-4" />,
           key: "ctr",
         },
-        { label: "CPM", value: fmtBRL(totals.cpm), icon: <Eye className="w-4 h-4" />, key: "cpm" },
+        { label: "CPM", value: formatBRL(totals.cpm), icon: <Eye className="w-4 h-4" />, key: "cpm" },
         {
           label: "Cliques",
           value: fmtNum(totals.clicks),
@@ -884,13 +919,36 @@ function OverviewTab({
   byCampaign,
   dateRange,
 }: OverviewProps & { byCampaign: Aggregated[] }) {
-  const { config, dataset } = useStore();
+  const { config, dataset } = useDashboard();
+  
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
   
   // Cores Premium solicitadas
   const COLOR_INVEST = "#F59E0B"; // Amarelo/Amber premium
   const COLOR_REVENUE = "#10B981"; // Verde/Emerald premium
 
   const [chartMetric, setChartMetric] = useState<string>("comparison");
+
+  const activeFormatter = useMemo(() => {
+    if (
+      chartMetric === "spend" ||
+      chartMetric === "conversionValue" ||
+      chartMetric === "costPerConversation" ||
+      chartMetric === "comparison"
+    ) {
+      return fmtBRL;
+    }
+    if (chartMetric === "roas") {
+      return (v: number) => `${fmtNum(v, 2)}x`;
+    }
+    return (v: number) => fmtNum(v);
+  }, [chartMetric]);
 
   // Ativa automaticamente o modo comparativo se houver dados de faturamento (Negócio ou Meta Sales)
   useEffect(() => {
@@ -902,7 +960,7 @@ function OverviewTab({
     }
   }, [mode, !!dataset?.mariaMaria]);
 
-  const kpis = getKpis(totals, mode, config?.customKpis, byCampaign);
+  const kpis = getKpis(totals, mode, config?.customKpis, byCampaign, isMobile);
 
   const filteredWeeks = useMemo(() => {
     if (!dataset?.mariaMaria) return [];
@@ -1121,7 +1179,7 @@ function OverviewTab({
 
       {/* Time series + highlights */}
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 glass-card rounded-xl p-6">
+        <div className="lg:col-span-2 glass-card rounded-xl p-6 min-w-0 overflow-hidden">
           <div className="flex items-start justify-between mb-4 flex-wrap gap-4">
             <div>
               <h3 className="font-display text-lg font-semibold">Gráfico de Performance</h3>
@@ -1182,12 +1240,12 @@ function OverviewTab({
                   interval={0}
                   minTickGap={10}
                 />
-                <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => fmtBRL(v)} />
+                <YAxis stroke="oklch(0.6 0 0)" fontSize={11} tickFormatter={(v) => activeFormatter(v)} />
                 <Tooltip
                   content={
                     <GoldTooltip
                       formatter={(v, name) => {
-                        return fmtBRL(v as number);
+                        return activeFormatter(v as number);
                       }}
                     />
                   }
@@ -1246,7 +1304,7 @@ function OverviewTab({
           )}
         </div>
 
-        <div className="glass-card rounded-xl p-6 space-y-4">
+        <div className="glass-card rounded-xl p-6 space-y-4 min-w-0 overflow-hidden">
           <h3 className="font-display text-lg font-semibold">Principais destaques</h3>
           <Highlight
             icon={<Award className="w-4 h-4" />}
@@ -1318,7 +1376,7 @@ function OverviewTab({
       {/* Maria Maria Weekly Performance & Detailed Table */}
       {dataset?.mariaMaria && (
         <div className="space-y-6 pt-6 border-t border-[oklch(0.83_0.16_88_/_0.15)]">
-          <div className="glass-card rounded-xl p-6 md:p-8">
+          <div className="glass-card rounded-xl p-6 md:p-8 min-w-0 overflow-hidden">
             <div className="mb-8">
               <h3 className="font-display text-2xl font-bold">Performance Meta vs Salão</h3>
               <p className="text-sm text-muted-foreground">
@@ -1601,24 +1659,24 @@ function CampaignsTab({ diagnosed, mode }: { diagnosed: DiagnosedCampaign[]; mod
   });
 
   const primaryResult = (c: DiagnosedCampaign) => {
-    if (mode === "sales") return { label: "Compras", value: fmtNum(c.purchases || c.results) };
+    if (mode === "sales") return { label: "Compras", value: fmtNum(c.purchases) };
     if (mode === "leads")
-      return { label: "Conversas", value: fmtNum(c.conversations || c.results) };
+      return { label: "Conversas", value: fmtNum(c.conversations) };
     if (mode === "video") return { label: "ThruPlays", value: fmtNum(c.thruplays) };
     if (mode === "awareness") return { label: "Alcance", value: fmtCompact(c.reach) };
     return { label: "Resultados", value: fmtNum(c.results || c.clicks) };
   };
   const primaryCost = (c: DiagnosedCampaign) => {
-    if (mode === "sales") return fmtBRL(c.cpa || c.costPerResult);
-    if (mode === "leads") return fmtBRL(c.costPerConversation || c.costPerResult);
-    if (mode === "video") return fmtBRL(c.costPerThruplay);
-    return fmtBRL(c.costPerResult || c.cpc);
+    if (mode === "sales") return c.cpa > 0 ? fmtBRL(c.cpa) : "—";
+    if (mode === "leads") return c.costPerConversation > 0 ? fmtBRL(c.costPerConversation) : "—";
+    if (mode === "video") return c.costPerThruplay > 0 ? fmtBRL(c.costPerThruplay) : "—";
+    return c.costPerResult > 0 ? fmtBRL(c.costPerResult) : "—";
   };
 
   return (
     <div className="space-y-6">
       {/* Comparison chart */}
-      <div className="glass-card rounded-xl p-6">
+      <div className="glass-card rounded-xl p-6 min-w-0 overflow-hidden">
         <h3 className="font-display text-lg font-semibold mb-4">Comparativo de campanhas</h3>
         <ResponsiveContainer width="100%" height={Math.max(300, sorted.length * 32)}>
           <BarChart data={sorted.slice(0, 12)} layout="vertical" margin={{ left: 100 }}>
@@ -2035,7 +2093,7 @@ function ChartsTab({
         {hasDate && series.length > 0 ? (
           <>
             {/* Gráfico Principal: Eixo Duplo */}
-            <div className="glass-card rounded-xl p-6">
+            <div className="glass-card rounded-xl p-6 min-w-0 overflow-hidden">
               <div className="flex items-start justify-between mb-6 flex-wrap gap-4">
                 <div>
                   <h3 className="font-display text-lg font-semibold">Desempenho x Investimento</h3>
@@ -2137,7 +2195,7 @@ function ChartsTab({
             </div>
 
             {/* Gráfico de Tendência de CPA */}
-            <div className="glass-card rounded-xl p-6">
+            <div className="glass-card rounded-xl p-6 min-w-0 overflow-hidden">
               <h3 className="font-display text-lg font-semibold mb-1">Tendência do CPA</h3>
               <p className="text-xs text-muted-foreground mb-6">
                 Custo por resultado ao longo do tempo
@@ -2173,7 +2231,7 @@ function ChartsTab({
           </div>
         )}
 
-        <div className="glass-card rounded-xl p-6">
+        <div className="glass-card rounded-xl p-6 min-w-0 overflow-hidden">
           <h3 className="font-display text-lg font-semibold mb-4">Distribuição de verba</h3>
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
@@ -2264,7 +2322,7 @@ function DiagnosisTab({
   return (
     <div className="space-y-6">
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="glass-card rounded-xl p-6 flex flex-col items-center justify-center text-center">
+        <div className="glass-card rounded-xl p-6 flex flex-col items-center justify-center text-center min-w-0 overflow-hidden">
           <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3">
             Score da conta
           </div>
@@ -2301,7 +2359,7 @@ function DiagnosisTab({
           </div>
         </div>
 
-        <div className="lg:col-span-2 glass-card rounded-xl p-6">
+        <div className="lg:col-span-2 glass-card rounded-xl p-6 min-w-0 overflow-hidden">
           <div className="flex items-center gap-2 mb-3">
             <Lightbulb className="w-5 h-5 text-[oklch(0.83_0.16_88)]" />
             <h3 className="font-display text-xl font-semibold">Diagnóstico geral</h3>
@@ -2398,7 +2456,7 @@ function DxList({
 /* ============ Data Quality Tab ============ */
 
 function DataQualityTab() {
-  const { dataset } = useStore();
+  const { dataset } = useDashboard();
   if (!dataset) return null;
 
   return (
@@ -2532,12 +2590,21 @@ function ReportTab({
   series: ReturnType<typeof timeSeries>;
   hasDate: boolean;
 }) {
-  const { config } = useStore();
-  const kpis = getKpis(totals, mode, config?.customKpis);
+  const { config } = useDashboard();
+  
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const kpis = getKpis(totals, mode, config?.customKpis, [], isMobile);
   const top = [...diagnosed].sort((a, b) => b.spend - a.spend).slice(0, 15);
 
   return (
-    <div className="bg-[oklch(0.13_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] rounded-2xl p-8 md:p-12 print:p-0 print:border-none print:bg-transparent">
+    <div className="bg-[oklch(0.13_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] rounded-2xl p-4 sm:p-8 md:p-12 print:p-0 print:border-none print:bg-transparent">
       <div className="flex items-end justify-between flex-wrap gap-4 pb-6 border-b border-[oklch(0.83_0.16_88_/_0.2)]">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-[oklch(0.83_0.16_88)] mb-2">
