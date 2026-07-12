@@ -22,6 +22,14 @@ export function FunnelTab({ funnel }: { funnel: FunnelResult }) {
   const lastMeta = firstCommercialIdx > 0 ? funnel.stages[firstCommercialIdx - 1] : null;
   const firstCommercial = firstCommercialIdx >= 0 ? funnel.stages[firstCommercialIdx] : null;
 
+  // Largura em escala de raiz quadrada: comprime a diferença gigante entre
+  // impressões e as demais etapas, mantendo a ordem decrescente (cara de funil).
+  const widthOf = (count: number) => {
+    if (top <= 0) return 12;
+    const ratio = Math.sqrt(count / top); // 0..1
+    return Math.max(12, ratio * 100); // piso de 12% para etapas pequenas continuarem visíveis
+  };
+
   return (
     <div className="space-y-8">
       {/* KPIs reais */}
@@ -35,57 +43,71 @@ export function FunnelTab({ funnel }: { funnel: FunnelResult }) {
 
       {/* Funil */}
       <div className="glass-card rounded-2xl p-6">
-        <h3 className="font-display text-lg font-semibold text-foreground mb-1">Funil real</h3>
-        <p className="text-sm text-muted-foreground mb-6">
-          Do anúncio no Meta até a venda no negócio. Cada etapa mostra quantos chegaram, a taxa de
-          conversão e quantos foram perdidos em relação à etapa anterior.
+        <h3 className="font-display text-lg font-semibold text-foreground mb-1 text-center">
+          Funil real
+        </h3>
+        <p className="text-sm text-muted-foreground mb-8 text-center max-w-xl mx-auto">
+          Do anúncio no Meta até a venda no negócio. A largura de cada faixa é comparativa (escala
+          suavizada) — o que vale é o número e a taxa de conversão entre etapas.
         </p>
 
-        <div className="space-y-3">
+        <div className="flex flex-col items-center gap-2">
           {funnel.stages.map((s, i) => {
-            const width = top > 0 ? Math.max(4, (s.count / top) * 100) : 4;
+            const width = widthOf(s.count);
             const isCommercial = s.source === "commercial";
+            const showHandoff = firstCommercial && lastMeta && i === firstCommercialIdx;
+
             return (
-              <div key={s.key}>
+              <div key={s.key} className="w-full flex flex-col items-center">
                 {/* Cartão de handoff Meta → comercial */}
-                {firstCommercial && lastMeta && i === firstCommercialIdx && (
-                  <div className="my-4 flex items-center gap-2 rounded-lg border border-[oklch(0.83_0.16_88_/_0.25)] bg-[oklch(0.83_0.16_88_/_0.06)] px-4 py-3 text-sm text-muted-foreground">
-                    <ArrowRight className="w-4 h-4 text-[oklch(0.83_0.16_88)] shrink-0" />
+                {showHandoff && (
+                  <div className="my-3 flex items-start gap-2 rounded-lg border border-[oklch(0.83_0.16_88_/_0.25)] bg-[oklch(0.83_0.16_88_/_0.06)] px-4 py-3 text-sm text-muted-foreground max-w-xl text-center">
+                    <ArrowRight className="w-4 h-4 text-[oklch(0.83_0.16_88)] shrink-0 mt-0.5" />
                     <span>
                       Transição Meta → negócio: o Meta contou{" "}
-                      <strong className="text-foreground">{fmtNum(lastMeta.count)}</strong>{" "}
-                      {lastMeta.label.toLowerCase()}; o negócio registrou{" "}
-                      <strong className="text-foreground">{fmtNum(firstCommercial.count)}</strong>{" "}
-                      {firstCommercial.label.toLowerCase()}. Medições diferentes do mesmo momento.
+                      <strong className="text-foreground">{fmtNum(lastMeta!.count)}</strong>{" "}
+                      {lastMeta!.label.toLowerCase()}; o negócio registrou{" "}
+                      <strong className="text-foreground">{fmtNum(firstCommercial!.count)}</strong>{" "}
+                      {firstCommercial!.label.toLowerCase()}. Medições diferentes do mesmo momento.
                     </span>
                   </div>
                 )}
 
-                <div className="flex items-center justify-between text-sm mb-1">
-                  <span className="font-medium text-foreground">{s.label}</span>
-                  <span className="text-muted-foreground">
+                {/* Taxa de conversão entre a etapa anterior e esta (conector central) */}
+                {s.conversionFromPrev !== null && !showHandoff && (
+                  <div className="text-[11px] text-[oklch(0.83_0.16_88)] font-medium py-0.5">
+                    ↓ {fmtPct(s.conversionFromPrev * 100, 1)}
+                  </div>
+                )}
+
+                {/* Faixa do funil, centralizada, com nome + número no meio */}
+                <div
+                  className={
+                    "relative mx-auto flex flex-col items-center justify-center rounded-lg py-3 px-4 min-h-[64px] transition-all " +
+                    (isCommercial
+                      ? "gold-gradient text-black"
+                      : "bg-[oklch(0.83_0.16_88_/_0.22)] text-foreground border border-[oklch(0.83_0.16_88_/_0.3)]")
+                  }
+                  style={{ width: `${width}%`, minWidth: "150px", maxWidth: "100%" }}
+                >
+                  <span
+                    className={
+                      "text-xs font-medium uppercase tracking-wide " +
+                      (isCommercial ? "text-black/70" : "text-muted-foreground")
+                    }
+                  >
+                    {s.label}
+                  </span>
+                  <span className="font-display text-2xl font-bold leading-tight">
                     {fmtNum(s.count)}
-                    {s.conversionFromPrev !== null && (
-                      <span className="ml-2 text-[oklch(0.83_0.16_88)]">
-                        {fmtPct(s.conversionFromPrev * 100, 1)}
-                      </span>
-                    )}
                   </span>
                 </div>
-                <div className="h-8 w-full rounded-md bg-[oklch(0.18_0_0)] overflow-hidden">
-                  <div
-                    className={
-                      isCommercial
-                        ? "h-full rounded-md gold-gradient"
-                        : "h-full rounded-md bg-[oklch(0.83_0.16_88_/_0.35)]"
-                    }
-                    style={{ width: `${width}%` }}
-                  />
-                </div>
+
+                {/* Perda em relação à etapa anterior */}
                 {s.dropFromPrev !== null && s.dropFromPrev > 0 && (
-                  <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
                     <TrendingDown className="w-3 h-3" />
-                    {fmtNum(s.dropFromPrev)} perdidos nesta etapa
+                    {fmtNum(s.dropFromPrev)} perdidos
                   </div>
                 )}
               </div>
