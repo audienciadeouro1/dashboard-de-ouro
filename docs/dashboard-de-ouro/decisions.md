@@ -44,3 +44,16 @@ Registro permanente de decisões arquiteturais e de produto. Toda decisão relev
 
 **Decisão:** todas as métricas são calculadas deterministicamente pelo backend; a IA consulta, interpreta e cita fonte/período/entidade. RAG ensina interpretação, nunca fornece números do cliente.
 **Motivo:** confiabilidade — números errados numa reunião com cliente destroem a credibilidade do produto.
+
+## 2026-07-12 — Analista de Ouro como agente externo no n8n (com RAG)
+
+**Decisão:** o Analista de Ouro (Fase 5) será construído **fora do app**, como agente no n8n com RAG, usando modelos de linguagem cujos tokens de API o Thallys já possui. O app não terá camada de IA embutida.
+**Motivo:** o Thallys já domina o n8n; evita acoplar custo e complexidade de IA ao Worker; troca de modelo/fornecedor fica livre.
+**Impacto:** a Fase 5 no app se reduz a **expor dados de leitura para o n8n consumir** (endpoints autenticados); tabelas `analyst_conversations`/`knowledge_*` do modelo alvo ficam sob responsabilidade do n8n/RAG externa. A regra "IA nunca calcula números" permanece: o n8n consulta métricas prontas do backend.
+**Alternativas:** IA embutida no Worker via API da Anthropic (rejeitada por ora — mais código e custo no app).
+
+## 2026-07-12 — Fase 1 (fundação): Caminho A "motor primeiro", comportamento preservado
+
+**Decisão:** executar os pendentes da Fase 1 na ordem: motor de métricas com testes → decompor `dashboard.tsx` → ligar seletor de datas ao servidor → qualidade de dados v1 (selo no topo + detalhes ao clicar). **A lógica atual é o gabarito**: números de hoje são a referência; a fase organiza e acrescenta, nunca altera resultado — o cruzamento de CSVs e a análise avulsa permanecem intactos.
+**Motivo:** os testes de métricas viram rede de proteção da refatoração do dashboard (2.774 linhas); refatorar antes de ter testes seria arriscado.
+**Detalhes:** [../superpowers/specs/2026-07-12-fase-1-fundacao-design.md](../superpowers/specs/2026-07-12-fase-1-fundacao-design.md)
