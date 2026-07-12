@@ -4,4 +4,12 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "dashboard-de-ouro",
+      "database_id": "137270b8-6a8a-48dc-b2ad-d50edce17af9",
+      "migrations_dir": "migrations"
+    }
+  ]
 }
