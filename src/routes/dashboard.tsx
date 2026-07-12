@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import {
   ArrowLeft,
@@ -93,8 +93,14 @@ export const Route = createFileRoute("/dashboard")({
       { name: "description", content: "Análise visual de campanhas Meta Ads." },
     ],
   }),
-  component: DashboardPage,
+  component: DashboardLayout,
 });
+
+// /dashboard é um contêiner: renderiza as rotas filhas (ex: /dashboard/$clientSlug).
+// A página baseada em memória (Maria Maria pós-upload) vive em dashboard.index.tsx.
+function DashboardLayout() {
+  return <Outlet />;
+}
 
 const GOLD = "oklch(0.83 0.16 88)";
 const GOLD_BRIGHT = "oklch(0.88 0.18 92)";
@@ -211,19 +217,6 @@ function useStore() {
     () => getData(),
     () => getData(),
   );
-}
-
-function DashboardPage() {
-  const navigate = useNavigate();
-  const { dataset, config } = useStore();
-
-  useEffect(() => {
-    if (!dataset || !config) {
-      navigate({ to: "/" });
-    }
-  }, [dataset, config, navigate]);
-
-  return <DashboardContent />;
 }
 
 function DateRangePicker({
