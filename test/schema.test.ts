@@ -14,3 +14,19 @@ describe("schema", () => {
     ]);
   });
 });
+
+describe("schema comercial (migração 0008)", () => {
+  it("cria funnel_configs com client_id único", async () => {
+    const { results } = await env.DB.prepare("PRAGMA table_info(funnel_configs)").all<{ name: string }>();
+    const cols = results.map((r) => r.name);
+    expect(cols).toEqual(expect.arrayContaining(["client_id", "config_json", "updated_at"]));
+  });
+
+  it("cria commercial_periods com colunas esperadas", async () => {
+    const { results } = await env.DB.prepare("PRAGMA table_info(commercial_periods)").all<{ name: string }>();
+    const cols = results.map((r) => r.name);
+    expect(cols).toEqual(
+      expect.arrayContaining(["id", "client_id", "start_date", "end_date", "label", "row_json", "source", "created_at"]),
+    );
+  });
+});
