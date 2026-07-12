@@ -19,12 +19,14 @@ Já existe: D1, `clients`, `ad_daily_insights` idempotente, `external_weekly_dat
 Pendente:
 - [x] 1.1 Saneamento (2026-07-12, branch `v1.4-nova-fase-sistema`): senha movida para secrets (AUTH_EMAIL/AUTH_PASSWORD via wrangler secret + .dev.vars), enum de perfis unificado (`DashboardProfile` = `AnalysisMode`, legados `pixel_sales`/`whatsapp_external` removidos), tabela `leads` removida (migração 0004)
 - [x] 1.2 `csv_imports` — histórico de importações (migração 0005 + `server/imports.ts` + registro automático nas ingestões)
-- [x] 1.3 Filtro de período no servidor (`fetchClientData` aceita `start`/`end`) + `clicks`/`reach` promovidos a colunas com backfill (migração 0006). Falta ligar o seletor de datas da UI ao filtro do servidor (junto com 1.6)
-- [ ] 1.4 Módulo `src/lib/server/metrics.ts` — cálculos determinísticos no servidor com testes de precisão
-- [ ] 1.5 Qualidade de dados v1: dias sem dados, colunas ausentes, dados desatualizados (pontuação explicável)
-- [ ] 1.6 Decompor `dashboard.tsx` (~2.800 linhas) em componentes por aba — pré-requisito para os novos módulos
+- [x] 1.3 Filtro de período no servidor (`fetchClientData` aceita `start`/`end`) + `clicks`/`reach` promovidos a colunas com backfill (migração 0006). Seletor de datas da UI ligado ao servidor via search params (2026-07-12); correção crítica: coluna `date` normalizada para YYYY-MM-DD (migração 0007 — CSVs PT-BR gravavam DD/MM/YYYY e quebravam o filtro)
+- [x] 1.4 (2026-07-12) `src/lib/metrics/formulas.ts` (fórmulas puras, fonte única) + `src/lib/server/metrics.ts` (`getClientTotals`/`getClientTimeSeries` + `fetchClientMetrics`) com testes golden-master garantindo zero mudança de resultado
+- [x] 1.5 (2026-07-12) Qualidade de dados v1: `src/lib/server/quality.ts` (dias sem dados, colunas ausentes, dados desatualizados; pontuação explicável, sem tabela nova) + selo `QualityBadge` no dashboard do cliente
+- [x] 1.6 (2026-07-12) `dashboard.tsx` decomposto: 2.774 → ~395 linhas; 8 abas + tema + configs + KPIs + auxiliares + contexto em `src/components/dashboard/`
 
-⚠️ Antes do próximo deploy: `wrangler secret put AUTH_EMAIL` / `AUTH_PASSWORD` (trocar a senha antiga) e `wrangler d1 migrations apply dashboard-de-ouro --remote` (migrações 0004–0006).
+**FASE 1 CONCLUÍDA (2026-07-12).** Suíte: 43 testes.
+
+⚠️ Antes do próximo deploy: `wrangler secret put AUTH_EMAIL` / `AUTH_PASSWORD` (trocar a senha antiga) e `wrangler d1 migrations apply dashboard-de-ouro --remote` (migrações 0004–**0007**).
 
 ## FASE 2 — Funil e comparações
 

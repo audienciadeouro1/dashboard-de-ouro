@@ -1,6 +1,6 @@
 # Dashboard de Ouro — Arquitetura
 
-**Última atualização:** 2026-07-12 (auditoria Fase 0, branch `v1.3-backend`)
+**Última atualização:** 2026-07-12 (Fase 1 concluída, branch `v1.4-nova-fase-sistema`)
 
 ## Stack (confirmada no código)
 
@@ -26,13 +26,16 @@ src/
   routes/                  # file-based routing
     index.tsx              # home: painel de clientes + aba Análise Rápida
     login.tsx              # barreira de login
-    dashboard.tsx          # LAYOUT (Outlet) + todo o código do dashboard (~2.800 linhas)
+    dashboard.tsx          # LAYOUT (Outlet) + DashboardContent enxuto (~395 linhas)
     dashboard.index.tsx    # /dashboard — dashboard em memória (análise avulsa / Maria Maria)
     dashboard.$clientSlug.tsx  # /dashboard/:slug — lê histórico do D1
     upload.$clientSlug.tsx # upload de CSV por cliente → grava no D1
   lib/
-    api.ts                 # server functions (fetch/ingest/auth) — fronteira cliente↔servidor
+    api.ts                 # server functions (fetch/ingest/auth/metrics/quality) — fronteira cliente↔servidor
     store.ts               # estado em memória (análise avulsa)
+    dates.ts               # toISODate, normalizeDateToISO (datas TEXT do banco sempre YYYY-MM-DD)
+    metrics/
+      formulas.ts          # fórmulas puras (CTR, CPC, CPM, ROAS, CPA…) — fonte única da verdade
     csv/                   # pipeline de CSV (client-side)
       parser.ts            # parseCsvFile, datasetFromRows (reconstrói dataset a partir do D1)
       normalize.ts         # mapeamento de colunas do Meta → chaves canônicas (CanonicalKey)
@@ -44,11 +47,17 @@ src/
     server/                # só executa no Worker (importado dinamicamente por api.ts)
       db.ts                # getDb() — binding em prod, getPlatformProxy em dev
       clients.ts           # CRUD de clientes
-      insights.ts          # upsert/consulta de ad_daily_insights (idempotente)
+      insights.ts          # upsert/consulta de ad_daily_insights (idempotente; coluna date normalizada ISO)
       external.ts          # upsert/consulta de external_weekly_data
-  components/              # BrandHeader, ClientCard, NewClientDialog, UploadDropzone, dashboard/*, ui/* (shadcn)
-migrations/                # 0001_schema, 0002_seed_clients, 0003_expand_profiles
-test/                      # 13 testes (schema, clients, insights, external, seed)
+      metrics.ts           # getClientTotals/getClientTimeSeries — cálculo determinístico no servidor
+      quality.ts           # computeQuality — pontuação explicável de qualidade de dados (v1)
+  components/
+    dashboard/             # 8 abas (OverviewTab…ReportTab) + theme, metric-configs, kpis, shared,
+                           # DateRangePicker, QualityBadge, context (DashboardContext/useDashboard)
+    …                      # BrandHeader, ClientCard, NewClientDialog, UploadDropzone, ui/* (shadcn)
+migrations/                # 0001–0007 (0007: normaliza coluna date para YYYY-MM-DD)
+test/                      # 43 testes (schema, clients, insights, external, imports, seed,
+                           # formulas, aggregate golden-master, metrics, quality, dates)
 ```
 
 ## Fluxo de dados
@@ -73,20 +82,20 @@ Dashboard (/dashboard/:slug) → fetchClientData → getInsights (row_json) → 
 
 ## Dívidas técnicas conhecidas (auditoria 2026-07-12; saneamento em 2026-07-12, branch v1.4)
 
-1. **`dashboard.tsx` com ~2.800 linhas** — layout, KPIs, gráficos, filtros, diagnósticos e comparações num arquivo só. Precisa ser decomposto antes dos novos módulos. *(pendente — Fase 1.6)*
+1. ~~`dashboard.tsx` com ~2.800 linhas~~ ✅ decomposto (2026-07-12): 8 abas + tema + KPIs + auxiliares + contexto em `src/components/dashboard/`; rota ficou com ~395 linhas.
 2. ~~Credencial hardcoded~~ ✅ resolvido: credenciais em `AUTH_EMAIL`/`AUTH_PASSWORD` via `wrangler secret` (prod) e `.dev.vars` (dev); `getWorkerEnv()` em `server/env.ts` centraliza bindings/secrets.
 3. **`ad_key` baseado em nomes** — renomear um anúncio cria linha nova. A integração com a Meta API trará IDs reais; prever migração. *(pendente — fase da API)*
-4. **Métricas dentro de `row_json`** — agregação toda no cliente. Parcialmente mitigado: `spend`, `impressions`, `clicks`, `reach`, `conversations`, `purchases`, `conversion_value` já são colunas SQL. Cálculo no servidor (`metrics.ts`) pendente — Fase 1.4.
-5. ~~`fetchClientData` retorna o histórico inteiro~~ ✅ aceita `start`/`end`; falta ligar o seletor de datas da UI (junto com a decomposição do dashboard).
+4. ~~Cálculo no servidor pendente~~ ✅ `src/lib/metrics/formulas.ts` (fórmulas puras compartilhadas) + `src/lib/server/metrics.ts` (totais/série do D1) + `fetchClientMetrics`; golden-master trava os números. A UI ainda calcula em JS no cliente com as MESMAS fórmulas (fonte única) — migrar a UI para consumir o servidor é opcional/futuro.
+5. ~~`fetchClientData` retorna o histórico inteiro~~ ✅ aceita `start`/`end` e o seletor de datas da UI alimenta o servidor via search params (`?start=&end=`); período sem dados tem estado vazio próprio. Coluna `date` normalizada (migração 0007) — CSVs PT-BR gravavam DD/MM/YYYY e quebravam a comparação de texto.
 6. **Sem tabela de contas de anúncios** — suficiente hoje (1 conta/cliente), rever na fase da API.
 7. ~~Sem histórico de importações~~ ✅ `csv_imports` (migração 0005) + `server/imports.ts`; toda ingestão registra arquivo, período e linhas. `meta_sync_runs` virá com a API.
-8. **Timezone** — datas TEXT `YYYY-MM-DD`; `parseDate` usa horário local do browser. Padronizar America/Sao_Paulo. *(pendente)*
+8. **Timezone** — coluna `date` agora sempre `YYYY-MM-DD` (ingestão normaliza; migração 0007 corrigiu o legado); `row_json` preserva o formato original do CSV para a tela. `parseDate` do browser permanece para a análise avulsa. *(restante: padronizar exibição America/Sao_Paulo)*
 9. ~~Tabela `leads` órfã~~ ✅ removida (migração 0004).
 10. ~~Perfis divergentes~~ ✅ `DashboardProfile` = `AnalysisMode` (fonte única `ANALYSIS_MODES`); valores legados removidos de código e testes; `ClientCard` mostra rótulo de qualquer perfil.
 
 ## Direção arquitetural (v2.0)
 
 - Novos módulos (funil, diagnósticos, decisões, alertas, tarefas, relatórios, analista) seguem o mesmo padrão: **tabela D1 + repositório em `src/lib/server/` + server function em `api.ts` + rota/aba**.
-- Métricas derivadas calculadas **no servidor** de forma determinística (novo módulo `src/lib/server/metrics.ts`), não pela IA.
+- Métricas derivadas calculadas **no servidor** de forma determinística (`src/lib/server/metrics.ts`, ✅ Fase 1), não pela IA.
 - Meta Marketing API (leitura) entra como segunda fonte gravando no mesmo `ad_daily_insights` (`source = 'meta_api'`), reaproveitando a idempotência.
-- Analista de Ouro: Workers AI ou API externa + RAG (Vectorize/D1); ver [ai-analyst.md](ai-analyst.md).
+- Analista de Ouro: **agente externo no n8n com RAG** (decisão 2026-07-12); o app expõe dados de leitura para o n8n consumir. Ver [ai-analyst.md](ai-analyst.md) e [decisions.md](decisions.md).

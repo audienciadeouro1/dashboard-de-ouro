@@ -46,6 +46,8 @@ Evolução incremental — **não criar todas as tabelas de uma vez**; cada fase
 ## Regras transversais
 
 - Granularidade diária para métricas da Meta; unicidade conceitual `conta + data + nível + id da entidade`.
+- **Coluna `date` sempre `YYYY-MM-DD`** (ingestão normaliza via `normalizeDateToISO`; migração 0007 corrigiu dados legados em DD/MM/YYYY). O `row_json` preserva o formato original do CSV para exibição.
+- **Qualidade de dados v1** (`server/quality.ts`) é calculada na hora a partir de `ad_daily_insights` — sem tabela própria. Pontuação explicável: dias sem dados (−3/dia, teto −30), dados desatualizados (>7d −10, >14d −20), colunas importantes ausentes (−5 cada, teto −25).
 - Todo registro tem `client_id`; dados de clientes distintos nunca se misturam.
 - Valores financeiros em BRL (`REAL` hoje; considerar centavos-inteiros se surgirem problemas de precisão).
 - Datas TEXT `YYYY-MM-DD`, interpretadas em America/Sao_Paulo.
