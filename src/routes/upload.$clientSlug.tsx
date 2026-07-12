@@ -11,6 +11,7 @@ import type { AnalysisMode, ParsedDataset } from "@/lib/csv/types";
 import { processMariaMaria } from "@/lib/csv/maria-maria";
 import { setData } from "@/lib/store";
 import { fetchClientBySlug, ingestCsvRows, ingestExternalWeeklyData, checkSession } from "@/lib/api";
+import { CommercialUploadSection } from "@/components/commercial/CommercialUploadSection";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/upload/$clientSlug")({
@@ -208,6 +209,11 @@ function UploadPage() {
           {loading ? "Processando..." : "Salvar e abrir dashboard"}
           <ArrowRight className="w-4 h-4" />
         </Button>
+
+        <CommercialUploadSection
+          clientId={client.id}
+          refYear={parsed ? new Date(parsed.rows[0]?.date ?? Date.now()).getFullYear() : new Date().getFullYear()}
+        />
       </main>
     </div>
   );
