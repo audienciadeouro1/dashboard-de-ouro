@@ -98,6 +98,8 @@ import {
 } from "@/components/dashboard/theme";
 import { METRIC_CONFIGS } from "@/components/dashboard/metric-configs";
 import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
+import { QualityBadge } from "@/components/dashboard/QualityBadge";
+import { toISODate } from "@/lib/dates";
 import { getKpis, type KpiDef } from "@/components/dashboard/kpis";
 import {
   Highlight,
@@ -301,6 +303,13 @@ export function DashboardContent({
             />
           </div>
           <DateRangePicker date={dateRange} setDate={handleDateRange} />
+          {uploadSlug && (
+            <QualityBadge
+              slug={uploadSlug}
+              start={dateRange?.from ? toISODate(dateRange.from) : undefined}
+              end={dateRange?.to ? toISODate(dateRange.to) : undefined}
+            />
+          )}
           <Select value={campaignFilter} onValueChange={setCampaignFilter}>
             <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
               <SelectValue placeholder="Campanha" />
