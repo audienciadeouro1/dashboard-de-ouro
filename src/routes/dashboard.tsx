@@ -117,6 +117,8 @@ import { ChartsTab } from "@/components/dashboard/ChartsTab";
 import { DiagnosisTab } from "@/components/dashboard/DiagnosisTab";
 import { DataQualityTab } from "@/components/dashboard/DataQualityTab";
 import { ReportTab } from "@/components/dashboard/ReportTab";
+import { FunnelTab } from "@/components/dashboard/FunnelTab";
+import type { FunnelResult } from "@/lib/metrics/funnel";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
@@ -155,11 +157,14 @@ export function DashboardContent({
   dataOverride,
   uploadSlug,
   onDateRangeChange,
+  funnel,
 }: {
   dataOverride?: { dataset: ParsedDataset; config: ReportConfig };
   uploadSlug?: string;
   /** Dashboards de cliente: propaga o período para o servidor (search params). Análise avulsa não passa. */
   onDateRangeChange?: (range: { from?: Date; to?: Date } | undefined) => void;
+  /** Funil real (Meta + comercial) calculado no servidor; presente só quando há config + dados comerciais. */
+  funnel?: FunnelResult | null;
 } = {}) {
   const store = useStore();
   const dataset = dataOverride?.dataset ?? store.dataset;
@@ -180,6 +185,11 @@ export function DashboardContent({
 
   const isMariaMaria = config.mode === "maria-maria" && !!dataset.mariaMaria;
   const effectiveMode = isMariaMaria ? "leads" : config.mode;
+
+  // Aba Funil só aparece quando há funil com etapas comerciais preenchidas.
+  const showFunnel = Boolean(
+    funnel && funnel.stages.some((s) => s.source === "commercial" && s.count > 0),
+  );
 
   // listas únicas
   const allCampaigns = useMemo(
@@ -345,6 +355,7 @@ export function DashboardContent({
           <TabsList className="bg-[oklch(0.14_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] p-1 h-12 flex flex-row overflow-x-auto justify-start max-w-full no-scrollbar flex-nowrap no-print w-full sm:w-auto">
             {[
               ["overview", "Visão Geral"],
+              ...(showFunnel ? [["funnel", "Funil"]] : []),
               ["campaigns", "Campanhas"],
               ["adsets", "Conjuntos"],
               ["ads", "Anúncios"],
@@ -374,6 +385,11 @@ export function DashboardContent({
               dateRange={dateRange}
             />
           </TabsContent>
+          {showFunnel && funnel && (
+            <TabsContent value="funnel">
+              <FunnelTab funnel={funnel} />
+            </TabsContent>
+          )}
           <TabsContent value="campaigns">
             <CampaignsTab diagnosed={diagnosed} mode={effectiveMode} />
           </TabsContent>

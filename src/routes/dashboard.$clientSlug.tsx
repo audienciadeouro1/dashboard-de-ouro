@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { Upload, ArrowLeft } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
-import { fetchClientData } from "@/lib/api";
+import { fetchClientData, fetchClientFunnel } from "@/lib/api";
 import { toISODate } from "@/lib/dates";
 import { datasetFromRows } from "@/lib/csv/parser";
 import type { AnalysisMode, ReportConfig } from "@/lib/csv/types";
@@ -26,17 +26,22 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
   }),
   loaderDeps: ({ search }) => ({ start: search.start, end: search.end }),
   loader: async ({ params, deps }) => {
-    const result = await fetchClientData({
-      data: { slug: params.clientSlug, start: deps.start, end: deps.end },
-    });
+    const [result, funnel] = await Promise.all([
+      fetchClientData({
+        data: { slug: params.clientSlug, start: deps.start, end: deps.end },
+      }),
+      fetchClientFunnel({
+        data: { slug: params.clientSlug, start: deps.start, end: deps.end },
+      }),
+    ]);
     if (!result) throw notFound();
-    return result;
+    return { ...result, funnel };
   },
   component: ClientDashboard,
 });
 
 function ClientDashboard() {
-  const { client, rows, externalWeekly } = Route.useLoaderData();
+  const { client, rows, externalWeekly, funnel } = Route.useLoaderData();
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
 
@@ -121,6 +126,7 @@ function ClientDashboard() {
       dataOverride={{ dataset, config }}
       uploadSlug={client.slug}
       onDateRangeChange={onDateRangeChange}
+      funnel={funnel}
     />
   );
 }
