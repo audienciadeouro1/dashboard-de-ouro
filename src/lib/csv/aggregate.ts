@@ -1,4 +1,5 @@
 import type { AdRow } from "./types";
+import * as f from "../metrics/formulas";
 
 export interface Aggregated {
   key: string;
@@ -97,19 +98,15 @@ export function aggregate(rows: AdRow[], dimension: keyof AdRow): Aggregated[] {
     a.rows += 1;
   }
   for (const a of map.values()) {
-    a.ctr = a.impressions > 0 ? (a.clicks / a.impressions) * 100 : 0;
-    a.cpc = a.clicks > 0 ? a.spend / a.clicks : 0;
-    a.cpm = a.impressions > 0 ? (a.spend / a.impressions) * 1000 : 0;
-    a.roas = a.spend > 0 ? a.conversionValue / a.spend : 0;
-    a.cpa = a.purchases > 0 ? a.spend / a.purchases : 0;
-    a.costPerResult = a.results > 0 ? a.spend / a.results : 0;
-    a.costPerConversation = a.conversations > 0 ? a.spend / a.conversations : 0;
-    a.costPerThruplay = a.thruplays > 0 ? a.spend / a.thruplays : 0;
-    a.frequency = a.reach > 0 ? a.impressions / a.reach : 0;
-    // Ticket médio dinâmico por linha agregada
-    if (a.purchases > 0) {
-      a.conversionValue = a.conversionValue || 0;
-    }
+    a.ctr = f.ctr(a.clicks, a.impressions);
+    a.cpc = f.cpc(a.spend, a.clicks);
+    a.cpm = f.cpm(a.spend, a.impressions);
+    a.roas = f.roas(a.conversionValue, a.spend);
+    a.cpa = f.cpa(a.spend, a.purchases);
+    a.costPerResult = f.costPerResult(a.spend, a.results);
+    a.costPerConversation = f.costPerConversation(a.spend, a.conversations);
+    a.costPerThruplay = f.costPerThruplay(a.spend, a.thruplays);
+    a.frequency = f.frequency(a.impressions, a.reach);
   }
   return Array.from(map.values());
 }
@@ -202,19 +199,20 @@ export function totals(rows: AdRow[]): Totals {
 
   t.budget = Array.from(uniqueBudgets.values()).reduce((sum, b) => sum + b, 0);
 
-  t.ctr = t.impressions > 0 ? (t.clicks / t.impressions) * 100 : 0;
-  t.cpc = t.clicks > 0 ? t.spend / t.clicks : 0;
-  t.cpm = t.impressions > 0 ? (t.spend / t.impressions) * 1000 : 0;
-  t.roas = t.spend > 0 ? t.conversionValue / t.spend : 0;
-  t.cpa = t.purchases > 0 ? t.spend / t.purchases : 0;
-  t.costPerResult = t.results > 0 ? t.spend / t.results : 0;
-  t.costPerConversation = t.conversations > 0 ? t.spend / t.conversations : 0;
-  t.costPerThruplay = t.thruplays > 0 ? t.spend / t.thruplays : 0;
-  t.frequency = t.reach > 0 ? t.impressions / t.reach : 0;
-  t.ticketMedio =
-    t.purchases > 0
-      ? t.conversionValue / t.purchases
-      : rows.reduce((max, r) => Math.max(max, r.averageConversionValue || 0), 0);
+  t.ctr = f.ctr(t.clicks, t.impressions);
+  t.cpc = f.cpc(t.spend, t.clicks);
+  t.cpm = f.cpm(t.spend, t.impressions);
+  t.roas = f.roas(t.conversionValue, t.spend);
+  t.cpa = f.cpa(t.spend, t.purchases);
+  t.costPerResult = f.costPerResult(t.spend, t.results);
+  t.costPerConversation = f.costPerConversation(t.spend, t.conversations);
+  t.costPerThruplay = f.costPerThruplay(t.spend, t.thruplays);
+  t.frequency = f.frequency(t.impressions, t.reach);
+  t.ticketMedio = f.ticketMedio(
+    t.conversionValue,
+    t.purchases,
+    rows.reduce((max, r) => Math.max(max, r.averageConversionValue || 0), 0),
+  );
   return t;
 }
 
@@ -292,8 +290,9 @@ export function timeSeries(rows: AdRow[]): {
   return Array.from(map.values())
     .map((d) => ({
       ...d,
-      cpa: d.results > 0 ? d.spend / d.results : 0,
-      costPerConversation: d.conversations > 0 ? d.spend / d.conversations : 0,
+      // O "cpa" da série diária sempre foi investimento/resultados — manter.
+      cpa: f.costPerResult(d.spend, d.results),
+      costPerConversation: f.costPerConversation(d.spend, d.conversations),
     }))
     .sort((a, b) => parseDate(a.date) - parseDate(b.date));
 }
