@@ -117,10 +117,12 @@ export async function parseCsvFile(file: File): Promise<ParsedDataset> {
               indicator.includes("messaging") ||
               indicator.includes("lead") ||
               indicator.includes("cadastro") ||
+              indicator.includes("conversas por mensagem iniciadas") ||
               unit.includes("conversa") ||
               unit.includes("messaging") ||
               unit.includes("lead") ||
-              unit.includes("cadastro");
+              unit.includes("cadastro") ||
+              unit.includes("conversas por mensagem iniciadas");
 
             if (seemsLikeLead) {
               if (row.conversations === 0 && row.results > 0) {

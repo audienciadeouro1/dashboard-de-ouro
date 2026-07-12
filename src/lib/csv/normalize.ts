@@ -18,6 +18,7 @@ export type CanonicalKey =
   | "frequency"
   | "clicks"
   | "ctr"
+  | "ctrTodos"
   | "cpc"
   | "cpm"
   | "results"
@@ -129,13 +130,12 @@ const COLUMN_MAP: Record<CanonicalKey, string[]> = {
     "ctr único",
     "ctr unico",
     "ctr do link",
-    "ctr (todos)",
     "unique ctr (link click-through rate)",
     "ctr",
-    "ctr (taxa de cliques no link) [todos]",
     "taxa de cliques",
     "taxa de cliques no link",
   ],
+  ctrTodos: ["ctr (todos)", "ctr (all)", "taxa de cliques (todos)"],
   cpc: [
     "cpc",
     "cpc (cost per link click)",

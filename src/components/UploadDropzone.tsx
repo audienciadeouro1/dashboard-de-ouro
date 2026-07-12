@@ -6,9 +6,10 @@ interface UploadDropzoneProps {
   onFile: (file: File) => void;
   loading?: boolean;
   fileName?: string | null;
+  description?: string;
 }
 
-export function UploadDropzone({ onFile, loading, fileName }: UploadDropzoneProps) {
+export function UploadDropzone({ onFile, loading, fileName, description }: UploadDropzoneProps) {
   const [dragOver, setDragOver] = useState(false);
 
   const handleDrop = useCallback(
@@ -70,8 +71,8 @@ export function UploadDropzone({ onFile, loading, fileName }: UploadDropzoneProp
                 : "Arraste seu CSV ou clique para selecionar"}
           </div>
           <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto">
-            Aceitamos arquivos CSV exportados do Gerenciador de Anúncios do Meta. Todo o
-            processamento acontece no seu navegador — seus dados não saem do dispositivo.
+            {description ||
+              "Aceitamos arquivos CSV exportados do Gerenciador de Anúncios do Meta. Todo o processamento acontece no seu navegador — seus dados não saem do dispositivo."}
           </p>
         </div>
       </div>

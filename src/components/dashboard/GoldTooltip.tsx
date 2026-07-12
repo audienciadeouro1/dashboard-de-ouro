@@ -8,6 +8,32 @@ interface TooltipProps {
 
 export function GoldTooltip({ active, payload, label, formatter }: TooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
+
+  // Tenta encontrar os valores de investimento (gasto) e faturamento no payload para calcular o ROAS
+  const spendEntry = payload.find(
+    (p) =>
+      p.dataKey === "spend" ||
+      p.dataKey === "investimento" ||
+      p.dataKey === "gasto" ||
+      p.dataKey === "metaData.spend" ||
+      p.name === "Investimento" ||
+      p.name === "Gasto Meta" ||
+      p.name === "Gasto"
+  );
+  const revenueEntry = payload.find(
+    (p) =>
+      p.dataKey === "conversionValue" ||
+      p.dataKey === "faturamento" ||
+      p.dataKey === "salonData.totalFaturamento" ||
+      p.name === "Faturamento"
+  );
+
+  const gasto = typeof spendEntry?.value === "number" ? spendEntry.value : 0;
+  const faturamento = typeof revenueEntry?.value === "number" ? revenueEntry.value : 0;
+
+  const roas = gasto > 0 ? faturamento / gasto : 0;
+  const hasBothMetrics = spendEntry && revenueEntry;
+
   return (
     <div className="rounded-lg border border-[oklch(0.83_0.16_88_/_0.4)] bg-[oklch(0.1_0_0_/_0.95)] backdrop-blur-md px-3 py-2 shadow-2xl">
       {label !== undefined && (
@@ -30,6 +56,18 @@ export function GoldTooltip({ active, payload, label, formatter }: TooltipProps)
             </span>
           </div>
         ))}
+
+        {/* ROAS Dinâmico - Exibido apenas quando as métricas de investimento e faturamento estão presentes */}
+        {hasBothMetrics && (
+          <div className="pt-1 mt-1 border-t border-[oklch(0.83_0.16_88_/_0.1)] flex items-center justify-between gap-4">
+            <span className="text-[10px] uppercase tracking-tighter text-muted-foreground">
+              ROAS DINÂMICO:
+            </span>
+            <span className="text-[oklch(0.6_0.2_300)] font-bold text-xs drop-shadow-[0_0_8px_oklch(0.6_0.2_300_/_0.5)]">
+              {roas.toFixed(2)}x
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

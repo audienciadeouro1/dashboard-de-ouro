@@ -1,6 +1,13 @@
 import type { CanonicalKey } from "./normalize";
 
-export type AnalysisMode = "sales" | "leads" | "awareness" | "engagement" | "video" | "custom";
+export type AnalysisMode =
+  | "sales"
+  | "leads"
+  | "awareness"
+  | "engagement"
+  | "video"
+  | "custom"
+  | "maria-maria";
 
 export const ANALYSIS_MODES: {
   id: AnalysisMode;
@@ -38,6 +45,12 @@ export const ANALYSIS_MODES: {
     label: "Personalizado",
     description: "Selecione manualmente suas métricas",
     icon: "sliders",
+  },
+  {
+    id: "maria-maria",
+    label: "Maria Maria (Salão)",
+    description: "Preset avançado com upload duplo (Meta + Salão)",
+    icon: "sparkles",
   },
 ];
 
@@ -81,8 +94,43 @@ export interface AdRow {
   reactions: number;
   comments: number;
   shares: number;
+  // Métricas técnicas adicionais para Maria Maria
+  ctrTodos: number;
   // Cópia dos dados originais para não perder nada
   rawData: Record<string, string>;
+}
+
+export interface MariaMariaRow {
+  semana: string;
+  startDate: number;
+  endDate: number;
+  salonData: {
+    contatosWhatsapp: number;
+    agendamentos: number;
+    agendamentosComServico: number;
+    totalFaturamento: number;
+    ticketMedio: number;
+  };
+  metaData: {
+    spend: number;
+    impressions: number;
+    reach: number;
+    frequency: number;
+    ctr: number;
+    ctrTodos: number;
+    cpm: number;
+    conversations: number;
+    cpl: number;
+    clicks: number;
+  };
+  roasReal: number;
+  cacReal: number;
+  taxaConversaoReal: number;
+}
+
+export interface MariaMariaDataset {
+  weeks: MariaMariaRow[];
+  metaDataset: ParsedDataset;
 }
 
 export interface ParsedDataset {
@@ -98,6 +146,7 @@ export interface ParsedDataset {
   hasCampaign: boolean;
   hasAdSet: boolean;
   hasAd: boolean;
+  mariaMaria?: MariaMariaDataset;
 }
 
 export interface ReportConfig {
