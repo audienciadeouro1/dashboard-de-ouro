@@ -10,15 +10,17 @@ export function adKeyFor(row: AdRow): string {
 const UPSERT = `
 INSERT INTO ad_daily_insights (
   client_id, date, ad_key, campaign_name, ad_set_name, ad_name,
-  spend, impressions, conversations, purchases, conversion_value,
+  spend, impressions, clicks, reach, conversations, purchases, conversion_value,
   source, row_json, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
 ON CONFLICT (client_id, date, ad_key) DO UPDATE SET
   campaign_name = excluded.campaign_name,
   ad_set_name = excluded.ad_set_name,
   ad_name = excluded.ad_name,
   spend = excluded.spend,
   impressions = excluded.impressions,
+  clicks = excluded.clicks,
+  reach = excluded.reach,
   conversations = excluded.conversations,
   purchases = excluded.purchases,
   conversion_value = excluded.conversion_value,
@@ -50,6 +52,8 @@ export async function upsertInsights(
           r.adName,
           r.spend,
           r.impressions,
+          r.clicks,
+          r.reach,
           r.conversations,
           r.purchases,
           r.conversionValue,

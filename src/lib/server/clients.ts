@@ -1,13 +1,8 @@
 import type { D1Database } from "@cloudflare/workers-types";
+import type { AnalysisMode } from "../csv/types";
 
-export type DashboardProfile =
-  | "sales"
-  | "leads"
-  | "awareness"
-  | "engagement"
-  | "video"
-  | "custom"
-  | "maria-maria";
+// O perfil do cliente É o modo de análise do dashboard (fonte única: ANALYSIS_MODES).
+export type DashboardProfile = AnalysisMode;
 
 export interface Client {
   id: number;

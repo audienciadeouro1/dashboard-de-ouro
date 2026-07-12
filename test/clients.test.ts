@@ -13,14 +13,14 @@ describe("clients repo", () => {
     await createClient(env.DB, {
       name: "Sushi Teste",
       slug: "sushi-teste",
-      dashboardProfile: "pixel_sales",
+      dashboardProfile: "sales",
       metaAdAccountId: "999888777",
     });
     const all = await listClients(env.DB);
     const created = all.find((c) => c.slug === "sushi-teste");
     expect(created).toBeDefined();
     expect(created?.name).toBe("Sushi Teste");
-    expect(created?.dashboardProfile).toBe("pixel_sales");
+    expect(created?.dashboardProfile).toBe("sales");
     expect(created?.metaAdAccountId).toBe("999888777");
     expect(created?.lastSyncedAt).toBeNull();
   });
@@ -29,7 +29,7 @@ describe("clients repo", () => {
     await createClient(env.DB, {
       name: "Cliente X",
       slug: "cliente-x",
-      dashboardProfile: "whatsapp_external",
+      dashboardProfile: "maria-maria",
     });
     const found = await getClientBySlug(env.DB, "cliente-x");
     expect(found?.name).toBe("Cliente X");
@@ -37,9 +37,9 @@ describe("clients repo", () => {
   });
 
   it("rejeita slug duplicado", async () => {
-    await createClient(env.DB, { name: "A", slug: "dup", dashboardProfile: "pixel_sales" });
+    await createClient(env.DB, { name: "A", slug: "dup", dashboardProfile: "sales" });
     await expect(
-      createClient(env.DB, { name: "B", slug: "dup", dashboardProfile: "pixel_sales" }),
+      createClient(env.DB, { name: "B", slug: "dup", dashboardProfile: "sales" }),
     ).rejects.toThrow();
   });
 
@@ -47,7 +47,7 @@ describe("clients repo", () => {
     const c = await createClient(env.DB, {
       name: "A",
       slug: "a",
-      dashboardProfile: "pixel_sales",
+      dashboardProfile: "sales",
     });
     const updated = await updateClient(env.DB, c.id, { name: "A2", color: "#FFD700" });
     expect(updated.name).toBe("A2");

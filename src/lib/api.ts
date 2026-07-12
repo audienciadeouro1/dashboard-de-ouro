@@ -5,14 +5,27 @@ import type { AdRow } from "./csv/types";
 // Imports dinâmicos dentro dos handlers: executam apenas no servidor.
 // Imports estáticos de código de /server/ são bloqueados no bundle do cliente.
 async function serverDeps() {
-  const [{ getDb }, clients, insights, external] = await Promise.all([
+  const [{ getDb }, clients, insights, external, imports] = await Promise.all([
     import("./server/db"),
     import("./server/clients"),
     import("./server/insights"),
     import("./server/external"),
+    import("./server/imports"),
   ]);
   const db = await getDb();
-  return { db, ...clients, ...insights, ...external };
+  return { db, ...clients, ...insights, ...external, ...imports };
+}
+
+/** Menor e maior data de um conjunto de linhas (datas em YYYY-MM-DD ordenam como texto). */
+function dateRangeOf(dates: string[]): { start: string | null; end: string | null } {
+  if (dates.length === 0) return { start: null, end: null };
+  let start = dates[0];
+  let end = dates[0];
+  for (const d of dates) {
+    if (d < start) start = d;
+    if (d > end) end = d;
+  }
+  return { start, end };
 }
 
 export const fetchClients = createServerFn({ method: "GET" }).handler(
@@ -30,18 +43,22 @@ export const fetchClientBySlug = createServerFn({ method: "GET" })
   });
 
 export const fetchClientData = createServerFn({ method: "GET" })
-  .inputValidator((slug: string) => slug)
-  .handler(async ({ data }): Promise<{ client: Client; rows: AdRow[]; externalWeekly?: any[] } | null> => {
-    const { db, getClientBySlug, getInsights, getExternalWeeklyData } = await serverDeps();
-    const client = await getClientBySlug(db, data);
-    if (!client) return null;
-    const isExternal = client.dashboardProfile === "maria-maria" || client.dashboardProfile === "whatsapp_external";
-    const [rows, externalWeekly] = await Promise.all([
-      getInsights(db, client.id),
-      isExternal ? getExternalWeeklyData(db, client.id) : Promise.resolve(undefined),
-    ]);
-    return { client, rows, externalWeekly };
-  });
+  .inputValidator((input: { slug: string; start?: string; end?: string }) => input)
+  .handler(
+    async ({
+      data,
+    }): Promise<{ client: Client; rows: AdRow[]; externalWeekly?: any[] } | null> => {
+      const { db, getClientBySlug, getInsights, getExternalWeeklyData } = await serverDeps();
+      const client = await getClientBySlug(db, data.slug);
+      if (!client) return null;
+      const isExternal = client.dashboardProfile === "maria-maria";
+      const [rows, externalWeekly] = await Promise.all([
+        getInsights(db, client.id, { start: data.start, end: data.end }),
+        isExternal ? getExternalWeeklyData(db, client.id) : Promise.resolve(undefined),
+      ]);
+      return { client, rows, externalWeekly };
+    },
+  );
 
 export const addClient = createServerFn({ method: "POST" })
   .inputValidator((input: ClientInput) => input)
@@ -51,11 +68,19 @@ export const addClient = createServerFn({ method: "POST" })
   });
 
 export const ingestCsvRows = createServerFn({ method: "POST" })
-  .inputValidator((input: { clientId: number; rows: AdRow[] }) => input)
+  .inputValidator((input: { clientId: number; rows: AdRow[]; fileName?: string }) => input)
   .handler(async ({ data }): Promise<{ saved: number }> => {
-    const { db, upsertInsights, touchLastSynced } = await serverDeps();
+    const { db, upsertInsights, touchLastSynced, recordImport } = await serverDeps();
     const saved = await upsertInsights(db, data.clientId, data.rows, "csv");
     await touchLastSynced(db, data.clientId);
+    const range = dateRangeOf(data.rows.map((r) => r.date));
+    await recordImport(db, data.clientId, {
+      kind: "meta_csv",
+      fileName: data.fileName,
+      periodStart: range.start,
+      periodEnd: range.end,
+      rowsSaved: saved,
+    });
     return { saved };
   });
 
@@ -70,11 +95,28 @@ export interface ExternalWeeklyInput {
 }
 
 export const ingestExternalWeeklyData = createServerFn({ method: "POST" })
-  .inputValidator((input: { clientId: number; weeks: ExternalWeeklyInput[] }) => input)
+  .inputValidator(
+    (input: { clientId: number; weeks: ExternalWeeklyInput[]; fileName?: string }) => input,
+  )
   .handler(async ({ data }): Promise<{ saved: number }> => {
-    const { db, upsertExternalWeeklyData } = await serverDeps();
+    const { db, upsertExternalWeeklyData, recordImport } = await serverDeps();
     const saved = await upsertExternalWeeklyData(db, data.clientId, data.weeks);
+    const range = dateRangeOf(data.weeks.map((w) => w.startDate));
+    await recordImport(db, data.clientId, {
+      kind: "external_weekly",
+      fileName: data.fileName,
+      periodStart: range.start,
+      periodEnd: range.end,
+      rowsSaved: saved,
+    });
     return { saved };
+  });
+
+export const fetchImportHistory = createServerFn({ method: "GET" })
+  .inputValidator((clientId: number) => clientId)
+  .handler(async ({ data }) => {
+    const { db, listImports } = await serverDeps();
+    return listImports(db, data);
   });
 
 import { getCookie, setCookie } from "@tanstack/react-start/server";

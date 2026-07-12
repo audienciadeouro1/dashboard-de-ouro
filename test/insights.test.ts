@@ -58,7 +58,7 @@ describe("insights repo", () => {
     const c = await createClient(env.DB, {
       name: `C${Date.now()}${Math.random()}`,
       slug: `c-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      dashboardProfile: "pixel_sales",
+      dashboardProfile: "sales",
     });
     clientId = c.id;
   });

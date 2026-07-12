@@ -1,12 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CalendarCheck } from "lucide-react";
 import type { Client } from "@/lib/server/clients";
+import { ANALYSIS_MODES } from "@/lib/csv/types";
 import { cn } from "@/lib/utils";
 
-const PROFILE_LABELS: Record<Client["dashboardProfile"], string> = {
-  pixel_sales: "Vendas via Pixel",
-  whatsapp_external: "WhatsApp + Dados Externos",
-};
+function profileLabel(profile: Client["dashboardProfile"]): string {
+  return ANALYSIS_MODES.find((m) => m.id === profile)?.label ?? profile;
+}
 
 function formatDate(iso: string): string {
   const d = new Date(iso.replace(" ", "T") + "Z");
@@ -36,7 +36,7 @@ export function ClientCard({ client }: { client: Client }) {
         {stale && <AlertTriangle className="w-4 h-4 text-[oklch(0.85_0.16_60)]" />}
       </div>
       <p className="text-xs uppercase tracking-wider text-muted-foreground">
-        {PROFILE_LABELS[client.dashboardProfile]}
+        {profileLabel(client.dashboardProfile)}
       </p>
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <CalendarCheck className="w-4 h-4" />

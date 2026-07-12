@@ -38,13 +38,8 @@ function UploadPage() {
   const [error, setError] = useState<string | null>(null);
   const [period, setPeriod] = useState("");
 
-  // Modo derivado do perfil do cliente
-  const mode: AnalysisMode =
-    client.slug === "maria-maria"
-      ? "maria-maria"
-      : client.dashboardProfile === "pixel_sales"
-        ? "sales"
-        : "leads";
+  // Modo derivado do perfil do cliente (perfil === modo de análise)
+  const mode: AnalysisMode = client.dashboardProfile;
   const isMariaMaria = mode === "maria-maria";
 
   // A página inteira aceita o arraste: soltar o CSV em qualquer lugar
@@ -104,7 +99,9 @@ function UploadPage() {
         finalDataset = { ...parsed, mariaMaria: mmDataset };
         
         // Salva dados diários do Meta:
-        await ingestCsvRows({ data: { clientId: client.id, rows: parsed.rows } });
+        await ingestCsvRows({
+          data: { clientId: client.id, rows: parsed.rows, fileName: fileA?.name },
+        });
         
         // Salva dados semanais do Salão no D1:
         const externalWeeks = mmDataset.weeks.map((w) => ({
@@ -116,7 +113,9 @@ function UploadPage() {
           faturamento: w.salonData.totalFaturamento,
           ticketMedio: w.salonData.ticketMedio,
         }));
-        await ingestExternalWeeklyData({ data: { clientId: client.id, weeks: externalWeeks } });
+        await ingestExternalWeeklyData({
+          data: { clientId: client.id, weeks: externalWeeks, fileName: fileB.name },
+        });
 
         // Salva também no store local (para redundância) e navega para a rota persistida
         setData(finalDataset, { clientName: client.name, period, mode });
@@ -125,7 +124,9 @@ function UploadPage() {
       }
       // Demais clientes: dados já persistidos no banco — abre o dashboard do
       // cliente, que relê tudo do D1 (acumulado, não só o upload atual).
-      await ingestCsvRows({ data: { clientId: client.id, rows: parsed.rows } });
+      await ingestCsvRows({
+        data: { clientId: client.id, rows: parsed.rows, fileName: fileA?.name },
+      });
       setData(finalDataset, { clientName: client.name, period, mode });
       navigate({ to: "/dashboard/$clientSlug", params: { clientSlug: client.slug } });
     } catch (e) {

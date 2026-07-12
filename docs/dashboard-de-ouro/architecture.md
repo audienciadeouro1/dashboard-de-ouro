@@ -71,18 +71,18 @@ Dashboard (/dashboard/:slug) → fetchClientData → getInsights (row_json) → 
 - **`row_json`:** cada linha diária guarda o `AdRow` completo em JSON; as agregações acontecem em JS no cliente (não em SQL).
 - **Isolamento por cliente:** `DashboardContext` em `dashboard.tsx` evita vazamento de estado entre dashboards.
 
-## Dívidas técnicas conhecidas (auditoria 2026-07-12)
+## Dívidas técnicas conhecidas (auditoria 2026-07-12; saneamento em 2026-07-12, branch v1.4)
 
-1. **`dashboard.tsx` com ~2.800 linhas** — layout, KPIs, gráficos, filtros, diagnósticos e comparações num arquivo só. Precisa ser decomposto antes dos novos módulos.
-2. **Credencial hardcoded** em `src/lib/api.ts` (`login`) — senha em texto plano no repositório. Migrar para secret do Worker + hash.
-3. **`ad_key` baseado em nomes** (`campanha|conjunto|anúncio`) — renomear um anúncio cria linha nova (duplica histórico). A integração com a Meta API exigirá IDs reais; prever migração.
-4. **Métricas dentro de `row_json`** — impossibilita agregação/filtro em SQL; tudo é carregado e somado no cliente. Aceitável no volume atual, limita o Analista de Ouro e o Comparador.
-5. **`fetchClientData` retorna o histórico inteiro** — sem paginação/filtro de período no servidor; cresce sem limite.
-6. **Sem tabela de contas de anúncios** — `meta_ad_account_id` é coluna de `clients`; suficiente hoje (1 conta/cliente), rever na Fase da API.
-7. **Sem histórico de importações/sincronizações** — não há `meta_imports`/`meta_sync_runs`.
-8. **Timezone** — datas guardadas como TEXT `YYYY-MM-DD`; `parseDate` usa horário local do browser. Padronizar America/Sao_Paulo.
-9. **Tabela `leads` órfã** — existe no schema (0001) mas a UI foi removida por decisão de escopo (sem CRM). Remover ou repropositar como estágios agregados do funil.
-10. **Perfis divergentes** — migração 0003 remapeou `pixel_sales`→`sales` e `whatsapp_external`→`maria-maria`, mas `api.ts` ainda checa `"whatsapp_external"`; unificar enum.
+1. **`dashboard.tsx` com ~2.800 linhas** — layout, KPIs, gráficos, filtros, diagnósticos e comparações num arquivo só. Precisa ser decomposto antes dos novos módulos. *(pendente — Fase 1.6)*
+2. ~~Credencial hardcoded~~ ✅ resolvido: credenciais em `AUTH_EMAIL`/`AUTH_PASSWORD` via `wrangler secret` (prod) e `.dev.vars` (dev); `getWorkerEnv()` em `server/env.ts` centraliza bindings/secrets.
+3. **`ad_key` baseado em nomes** — renomear um anúncio cria linha nova. A integração com a Meta API trará IDs reais; prever migração. *(pendente — fase da API)*
+4. **Métricas dentro de `row_json`** — agregação toda no cliente. Parcialmente mitigado: `spend`, `impressions`, `clicks`, `reach`, `conversations`, `purchases`, `conversion_value` já são colunas SQL. Cálculo no servidor (`metrics.ts`) pendente — Fase 1.4.
+5. ~~`fetchClientData` retorna o histórico inteiro~~ ✅ aceita `start`/`end`; falta ligar o seletor de datas da UI (junto com a decomposição do dashboard).
+6. **Sem tabela de contas de anúncios** — suficiente hoje (1 conta/cliente), rever na fase da API.
+7. ~~Sem histórico de importações~~ ✅ `csv_imports` (migração 0005) + `server/imports.ts`; toda ingestão registra arquivo, período e linhas. `meta_sync_runs` virá com a API.
+8. **Timezone** — datas TEXT `YYYY-MM-DD`; `parseDate` usa horário local do browser. Padronizar America/Sao_Paulo. *(pendente)*
+9. ~~Tabela `leads` órfã~~ ✅ removida (migração 0004).
+10. ~~Perfis divergentes~~ ✅ `DashboardProfile` = `AnalysisMode` (fonte única `ANALYSIS_MODES`); valores legados removidos de código e testes; `ClientCard` mostra rótulo de qualquer perfil.
 
 ## Direção arquitetural (v2.0)
 

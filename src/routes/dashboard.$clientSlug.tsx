@@ -14,7 +14,7 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
     meta: [{ title: "Dashboard — Dashboard de Ouro" }],
   }),
   loader: async ({ params }) => {
-    const result = await fetchClientData({ data: params.clientSlug });
+    const result = await fetchClientData({ data: { slug: params.clientSlug } });
     if (!result) throw notFound();
     return result;
   },
@@ -24,16 +24,11 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
 function ClientDashboard() {
   const { client, rows, externalWeekly } = Route.useLoaderData();
 
-  const mode: AnalysisMode =
-    client.dashboardProfile === "pixel_sales"
-      ? "sales"
-      : client.dashboardProfile === "whatsapp_external" || client.dashboardProfile === "maria-maria"
-        ? "maria-maria"
-        : (client.dashboardProfile as AnalysisMode);
+  const mode: AnalysisMode = client.dashboardProfile;
 
   const dataset = useMemo(() => {
     const ds = datasetFromRows(rows, `${client.name} (histórico)`);
-    if ((client.dashboardProfile === "maria-maria" || client.dashboardProfile === "whatsapp_external") && externalWeekly) {
+    if (client.dashboardProfile === "maria-maria" && externalWeekly) {
       const mmDataset = reconstructMariaMaria(ds, externalWeekly);
       return { ...ds, mariaMaria: mmDataset };
     }

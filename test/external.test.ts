@@ -11,7 +11,7 @@ describe("external weekly data repo", () => {
     const client = await createClient(env.DB, {
       name: "Cliente Teste Semanal",
       slug: "cliente-teste-semanal",
-      dashboardProfile: "whatsapp_external",
+      dashboardProfile: "maria-maria",
     });
 
     const weeks = [

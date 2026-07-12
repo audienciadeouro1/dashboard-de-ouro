@@ -17,12 +17,14 @@ Desenvolvimento em fases. Não implementar tudo de uma vez; cada fase gera plano
 Já existe: D1, `clients`, `ad_daily_insights` idempotente, `external_weekly_data`, upload por cliente, dashboard lendo do banco, login, 13 testes.
 
 Pendente:
-- [ ] 1.1 Saneamento: unificar enum de perfis (migração 0003 × `api.ts`), decidir destino da tabela `leads`, mover senha para secret
-- [ ] 1.2 `csv_imports` — histórico de importações (arquivo, período, linhas gravadas/rejeitadas)
-- [ ] 1.3 Filtro de período no servidor (`getInsights` com range vindo da UI) + promover `clicks`/`reach` a colunas
+- [x] 1.1 Saneamento (2026-07-12, branch `v1.4-nova-fase-sistema`): senha movida para secrets (AUTH_EMAIL/AUTH_PASSWORD via wrangler secret + .dev.vars), enum de perfis unificado (`DashboardProfile` = `AnalysisMode`, legados `pixel_sales`/`whatsapp_external` removidos), tabela `leads` removida (migração 0004)
+- [x] 1.2 `csv_imports` — histórico de importações (migração 0005 + `server/imports.ts` + registro automático nas ingestões)
+- [x] 1.3 Filtro de período no servidor (`fetchClientData` aceita `start`/`end`) + `clicks`/`reach` promovidos a colunas com backfill (migração 0006). Falta ligar o seletor de datas da UI ao filtro do servidor (junto com 1.6)
 - [ ] 1.4 Módulo `src/lib/server/metrics.ts` — cálculos determinísticos no servidor com testes de precisão
 - [ ] 1.5 Qualidade de dados v1: dias sem dados, colunas ausentes, dados desatualizados (pontuação explicável)
 - [ ] 1.6 Decompor `dashboard.tsx` (~2.800 linhas) em componentes por aba — pré-requisito para os novos módulos
+
+⚠️ Antes do próximo deploy: `wrangler secret put AUTH_EMAIL` / `AUTH_PASSWORD` (trocar a senha antiga) e `wrangler d1 migrations apply dashboard-de-ouro --remote` (migrações 0004–0006).
 
 ## FASE 2 — Funil e comparações
 
