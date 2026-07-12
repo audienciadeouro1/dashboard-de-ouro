@@ -17,6 +17,8 @@ async function serverDeps() {
     funnelConfig,
     funnel,
     compare,
+    goals,
+    diagnostics,
   ] = await Promise.all([
       import("./server/db"),
       import("./server/clients"),
@@ -29,6 +31,8 @@ async function serverDeps() {
       import("./server/funnel-config"),
       import("./server/funnel"),
       import("./server/compare"),
+      import("./server/goals"),
+      import("./server/diagnostics"),
     ]);
   const db = await getDb();
   return {
@@ -43,6 +47,8 @@ async function serverDeps() {
     ...funnelConfig,
     ...funnel,
     ...compare,
+    ...goals,
+    ...diagnostics,
   };
 }
 
@@ -253,6 +259,24 @@ export const runCommercialBackfill = createServerFn({ method: "POST" })
     const { db } = await serverDeps();
     const { backfillCommercialFromExternal } = await import("./server/commercial-backfill");
     return backfillCommercialFromExternal(db, clientId);
+  });
+
+// --- Fase 3: metas, diagnósticos e alertas determinísticos ---
+
+export const fetchClientDiagnostics = createServerFn({ method: "GET" })
+  .inputValidator((input: { slug: string; start?: string; end?: string }) => input)
+  .handler(async ({ data }) => {
+    const { db, getClientBySlug, getClientDiagnostics } = await serverDeps();
+    const client = await getClientBySlug(db, data.slug);
+    if (!client) return null;
+    return getClientDiagnostics(db, client.id, { start: data.start, end: data.end });
+  });
+
+export const saveClientGoal = createServerFn({ method: "POST" })
+  .inputValidator((input: { clientId: number; metric: string; target: number | null; limitValue: number | null; active: boolean }) => input)
+  .handler(async ({ data }) => {
+    const { db, saveGoal } = await serverDeps();
+    return saveGoal(db, { clientId: data.clientId, metric: data.metric as never, target: data.target, limitValue: data.limitValue, active: data.active });
   });
 
 import { getCookie, setCookie } from "@tanstack/react-start/server";

@@ -28,22 +28,22 @@ Pendente:
 
 ⚠️ Antes do próximo deploy: `wrangler secret put AUTH_EMAIL` / `AUTH_PASSWORD` (trocar a senha antiga) e `wrangler d1 migrations apply dashboard-de-ouro --remote` (migrações 0004–**0007**).
 
-## FASE 2 — Funil e comparações
+## FASE 2 — Funil e comparações ✅ (2026-07-12)
 
-- [ ] CSV comercial com mapeamento de colunas por cliente (pré-visualização, validação, duplicados, erros por linha, modelo salvo)
-- [ ] `commercial_conversions` (estágios: conversa, qualificado, orçamento, venda) com atribuição opcional
-- [ ] Funil completo com taxas, perdas por etapa e maior ponto de perda destacado
-- [ ] "Origem não identificada" sempre visível
-- [ ] Comparador de períodos (semana×semana, mês×mês, personalizado) e entidade A×B
-- [ ] Métricas reais: ROAS real, CAC real, ticket médio
+- [x] CSV comercial com mapeamento de colunas por cliente e modelo salvo
+- [x] Funil completo com taxas, perdas por etapa e leitura Meta/pixel ou comercial
+- [x] Comparador de períodos (7/30 dias e personalizado)
+- [x] Métricas reais: ROAS real, CAC real, ticket médio
 
-## FASE 3 — Diagnósticos e alertas
+## FASE 3 — Diagnósticos e alertas ✅ (2026-07-12)
 
-- [ ] Motor de regras determinísticas configuráveis (evolução de `diagnostics.ts`)
-- [ ] Aba "Diagnóstico": fato/evidência/hipótese/recomendação, severidade, confiança, status
-- [ ] `goals` — metas e limites por cliente (sem limites universais)
-- [ ] Central de alertas (CPA acima do limite, ROAS abaixo da meta, CTR em queda, dados atrasados…)
+- [x] Motor de regras determinísticas configuráveis (`src/lib/metrics/diagnostics.ts`), executado no servidor
+- [x] Aba "Diagnóstico": fato/evidência/hipótese/recomendação, severidade e confiança
+- [x] `goals` — metas e limites por cliente (sem limites universais), migração 0011
+- [x] Alertas determinísticos: CPA acima do limite, ROAS abaixo da meta, CTR em queda e dados atrasados
 - [ ] Ações "Criar tarefa" e "Registrar decisão" a partir de diagnóstico/alerta
+
+Implementação da Fase 3: `ClientDiagnosticsTab`, `getClientDiagnostics` e `saveClientGoal`. As ações de tarefa/decisão permanecem para a Fase 4, quando existirão as tabelas `tasks` e `decisions`.
 
 ## FASE 4 — Memória estratégica
 

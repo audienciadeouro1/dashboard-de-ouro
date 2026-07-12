@@ -3,7 +3,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Upload, ArrowLeft } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
-import { fetchClientData, fetchClientFunnel, saveClientKpis } from "@/lib/api";
+import { fetchClientData, fetchClientFunnel, fetchClientDiagnostics, saveClientKpis } from "@/lib/api";
 import { toISODate } from "@/lib/dates";
 import { datasetFromRows } from "@/lib/csv/parser";
 import type { AnalysisMode, ReportConfig } from "@/lib/csv/types";
@@ -27,22 +27,25 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
   }),
   loaderDeps: ({ search }) => ({ start: search.start, end: search.end }),
   loader: async ({ params, deps }) => {
-    const [result, funnel] = await Promise.all([
+    const [result, funnel, diagnostics] = await Promise.all([
       fetchClientData({
         data: { slug: params.clientSlug, start: deps.start, end: deps.end },
       }),
       fetchClientFunnel({
         data: { slug: params.clientSlug, start: deps.start, end: deps.end },
       }),
+      fetchClientDiagnostics({
+        data: { slug: params.clientSlug, start: deps.start, end: deps.end },
+      }),
     ]);
     if (!result) throw notFound();
-    return { ...result, funnel };
+    return { ...result, funnel, diagnostics };
   },
   component: ClientDashboard,
 });
 
 function ClientDashboard() {
-  const { client, rows, externalWeekly, funnel } = Route.useLoaderData();
+  const { client, rows, externalWeekly, funnel, diagnostics } = Route.useLoaderData();
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
 
@@ -142,6 +145,8 @@ function ClientDashboard() {
       uploadSlug={client.slug}
       onDateRangeChange={onDateRangeChange}
       funnel={funnel}
+      diagnostics={diagnostics}
+      clientId={client.id}
       onCustomKpisChange={onCustomKpisChange}
     />
   );

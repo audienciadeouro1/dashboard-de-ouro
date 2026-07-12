@@ -119,7 +119,9 @@ import { DataQualityTab } from "@/components/dashboard/DataQualityTab";
 import { ReportTab } from "@/components/dashboard/ReportTab";
 import { FunnelTab } from "@/components/dashboard/FunnelTab";
 import { CompareTab } from "@/components/dashboard/CompareTab";
+import { ClientDiagnosticsTab } from "@/components/dashboard/ClientDiagnosticsTab";
 import type { FunnelResult } from "@/lib/metrics/funnel";
+import type { ClientDiagnostics } from "@/lib/server/diagnostics";
 import { normalizeDateToISO } from "@/lib/dates";
 
 export const Route = createFileRoute("/dashboard")({
@@ -160,6 +162,8 @@ export function DashboardContent({
   uploadSlug,
   onDateRangeChange,
   funnel,
+  diagnostics,
+  clientId,
   onCustomKpisChange,
 }: {
   dataOverride?: { dataset: ParsedDataset; config: ReportConfig };
@@ -168,6 +172,9 @@ export function DashboardContent({
   onDateRangeChange?: (range: { from?: Date; to?: Date } | undefined) => void;
   /** Funil real (Meta + comercial) calculado no servidor; presente só quando há config + dados comerciais. */
   funnel?: FunnelResult | null;
+  /** Diagnósticos determinísticos do dashboard persistido. */
+  diagnostics?: ClientDiagnostics | null;
+  clientId?: number;
   /** Dashboards de cliente: persiste as métricas extras no banco. */
   onCustomKpisChange?: (kpis: CanonicalKey[]) => void;
 } = {}) {
@@ -199,6 +206,7 @@ export function DashboardContent({
 
   // Comparador: só nos dashboards de cliente (têm slug) e com dados datados.
   const showCompare = Boolean(uploadSlug && dataset.hasDate);
+  const showDiagnostics = Boolean(uploadSlug && diagnostics);
   const maxDate = useMemo(() => {
     if (!dataset.hasDate) return null;
     let max: string | null = null;
@@ -379,7 +387,7 @@ export function DashboardContent({
               ["adsets", "Conjuntos"],
               ["ads", "Anúncios"],
               ["charts", "Gráficos"],
-              ["diagnosis", "Diagnóstico"],
+              ["diagnosis", showDiagnostics ? "Diagnóstico" : "Análise"],
               ["data", "Qualidade dos Dados"],
               ["report", "Relatório"],
             ].map(([id, label]) => (
@@ -437,7 +445,11 @@ export function DashboardContent({
             />
           </TabsContent>
           <TabsContent value="diagnosis">
-            <DiagnosisTab dx={accountDx} diagnosed={diagnosed} mode={effectiveMode} />
+            {diagnostics && clientId ? (
+              <ClientDiagnosticsTab clientId={clientId} goals={diagnostics.goals} diagnostics={diagnostics.diagnostics} alerts={diagnostics.alerts} />
+            ) : (
+              <DiagnosisTab dx={accountDx} diagnosed={diagnosed} mode={effectiveMode} />
+            )}
           </TabsContent>
           <TabsContent value="data">
             <DataQualityTab />

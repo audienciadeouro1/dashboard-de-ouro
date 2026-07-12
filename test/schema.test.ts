@@ -30,3 +30,12 @@ describe("schema comercial (migração 0008)", () => {
     );
   });
 });
+
+describe("schema de diagnósticos (migração 0011)", () => {
+  it("cria metas, diagnósticos e alertas", async () => {
+    const { results } = await env.DB.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('goals','diagnostics','alerts') ORDER BY name",
+    ).all<{ name: string }>();
+    expect(results.map((r) => r.name)).toEqual(["alerts", "diagnostics", "goals"]);
+  });
+});

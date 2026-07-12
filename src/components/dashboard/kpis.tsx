@@ -334,7 +334,7 @@ export function getKpis(
     if (conf) {
       // Tenta pegar do total (numérico) ou da primeira linha disponível (texto/metadata)
       const numericVal = (totals as unknown as Record<string, number>)[k];
-      const stringVal = (byCampaign[0] as unknown as Record<string, string>)[k];
+      const stringVal = (byCampaign[0] as unknown as Record<string, string> | undefined)?.[k];
 
       const val = numericVal !== undefined && numericVal !== 0 ? numericVal : stringVal;
 
