@@ -16,6 +16,7 @@ async function serverDeps() {
     commercial,
     funnelConfig,
     funnel,
+    compare,
   ] = await Promise.all([
       import("./server/db"),
       import("./server/clients"),
@@ -27,6 +28,7 @@ async function serverDeps() {
       import("./server/commercial"),
       import("./server/funnel-config"),
       import("./server/funnel"),
+      import("./server/compare"),
     ]);
   const db = await getDb();
   return {
@@ -40,6 +42,7 @@ async function serverDeps() {
     ...commercial,
     ...funnelConfig,
     ...funnel,
+    ...compare,
   };
 }
 
@@ -213,6 +216,18 @@ export const fetchCommercialData = createServerFn({ method: "GET" })
   .handler(async ({ data: clientId }) => {
     const { db, getCommercialPeriods } = await serverDeps();
     return getCommercialPeriods(db, clientId);
+  });
+
+export const fetchClientComparison = createServerFn({ method: "GET" })
+  .inputValidator(
+    (input: { slug: string; a: { start: string; end: string }; b: { start: string; end: string } }) =>
+      input,
+  )
+  .handler(async ({ data }) => {
+    const { db, getClientBySlug, getClientComparison } = await serverDeps();
+    const client = await getClientBySlug(db, data.slug);
+    if (!client) return null;
+    return getClientComparison(db, client.id, data.a, data.b);
   });
 
 export const saveClientKpis = createServerFn({ method: "POST" })
