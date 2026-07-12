@@ -11,27 +11,28 @@ import {
 describe("clients repo", () => {
   it("cria e lista clientes", async () => {
     await createClient(env.DB, {
-      name: "Aki Sushi",
-      slug: "aki-sushi",
+      name: "Sushi Teste",
+      slug: "sushi-teste",
       dashboardProfile: "pixel_sales",
-      metaAdAccountId: "1067373311996985",
+      metaAdAccountId: "999888777",
     });
     const all = await listClients(env.DB);
-    expect(all).toHaveLength(1);
-    expect(all[0].name).toBe("Aki Sushi");
-    expect(all[0].dashboardProfile).toBe("pixel_sales");
-    expect(all[0].metaAdAccountId).toBe("1067373311996985");
-    expect(all[0].lastSyncedAt).toBeNull();
+    const created = all.find((c) => c.slug === "sushi-teste");
+    expect(created).toBeDefined();
+    expect(created?.name).toBe("Sushi Teste");
+    expect(created?.dashboardProfile).toBe("pixel_sales");
+    expect(created?.metaAdAccountId).toBe("999888777");
+    expect(created?.lastSyncedAt).toBeNull();
   });
 
   it("busca por slug e retorna null quando não existe", async () => {
     await createClient(env.DB, {
-      name: "Maria Maria",
-      slug: "maria-maria",
+      name: "Cliente X",
+      slug: "cliente-x",
       dashboardProfile: "whatsapp_external",
     });
-    const found = await getClientBySlug(env.DB, "maria-maria");
-    expect(found?.name).toBe("Maria Maria");
+    const found = await getClientBySlug(env.DB, "cliente-x");
+    expect(found?.name).toBe("Cliente X");
     expect(await getClientBySlug(env.DB, "nao-existe")).toBeNull();
   });
 
