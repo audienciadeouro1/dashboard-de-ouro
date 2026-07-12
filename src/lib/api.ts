@@ -28,6 +28,16 @@ export const fetchClientBySlug = createServerFn({ method: "GET" })
     return getClientBySlug(db, data);
   });
 
+export const fetchClientData = createServerFn({ method: "GET" })
+  .inputValidator((slug: string) => slug)
+  .handler(async ({ data }): Promise<{ client: Client; rows: AdRow[] } | null> => {
+    const { db, getClientBySlug, getInsights } = await serverDeps();
+    const client = await getClientBySlug(db, data);
+    if (!client) return null;
+    const rows = await getInsights(db, client.id);
+    return { client, rows };
+  });
+
 export const addClient = createServerFn({ method: "POST" })
   .inputValidator((input: ClientInput) => input)
   .handler(async ({ data }): Promise<Client> => {

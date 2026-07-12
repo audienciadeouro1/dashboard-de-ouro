@@ -72,7 +72,7 @@ import { aggregate, timeSeries, totals as computeTotals, parseDate } from "@/lib
 import type { Aggregated, Totals } from "@/lib/csv/aggregate";
 import { diagnoseCampaigns, diagnoseAccount } from "@/lib/csv/diagnostics";
 import { fmtBRL, fmtNum, fmtPct, fmtCompact } from "@/lib/csv/format";
-import type { AdRow, AnalysisMode } from "@/lib/csv/types";
+import type { AdRow, AnalysisMode, ParsedDataset, ReportConfig } from "@/lib/csv/types";
 import type { CanonicalKey } from "@/lib/csv/normalize";
 import { cn } from "@/lib/utils";
 import { Plus, Trash2, Check, ChevronRight, PlusCircle, Hash, ShieldCheck } from "lucide-react";
@@ -289,8 +289,16 @@ function DateRangePicker({
   );
 }
 
-function DashboardContent() {
-  const { dataset, config } = useStore();
+export function DashboardContent({
+  dataOverride,
+  uploadSlug,
+}: {
+  dataOverride?: { dataset: ParsedDataset; config: ReportConfig };
+  uploadSlug?: string;
+} = {}) {
+  const store = useStore();
+  const dataset = dataOverride?.dataset ?? store.dataset;
+  const config = dataOverride?.config ?? store.config;
 
   const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | undefined>();
   const [campaignFilter, setCampaignFilter] = useState<string>("all");
@@ -377,9 +385,15 @@ function DashboardContent() {
               size="sm"
               className="border-[oklch(0.83_0.16_88_/_0.3)] hover:border-[oklch(0.83_0.16_88_/_0.6)]"
             >
-              <Link to="/">
-                <RefreshCw className="w-4 h-4 mr-1.5" /> Trocar arquivo
-              </Link>
+              {uploadSlug ? (
+                <Link to="/upload/$clientSlug" params={{ clientSlug: uploadSlug }}>
+                  <RefreshCw className="w-4 h-4 mr-1.5" /> Atualizar dados
+                </Link>
+              ) : (
+                <Link to="/">
+                  <RefreshCw className="w-4 h-4 mr-1.5" /> Trocar arquivo
+                </Link>
+              )}
             </Button>
           </div>
         }
@@ -393,7 +407,7 @@ function DashboardContent() {
               to="/"
               className="inline-flex items-center text-xs text-muted-foreground hover:text-[oklch(0.83_0.16_88)] mb-2"
             >
-              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar ao upload
+              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar ao painel
             </Link>
             <h1 className="font-display text-3xl md:text-4xl font-bold">
               {config.clientName || "Análise de Campanhas"}

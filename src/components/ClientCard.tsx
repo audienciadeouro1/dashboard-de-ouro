@@ -23,7 +23,7 @@ export function ClientCard({ client }: { client: Client }) {
   const stale = isStale(client.lastSyncedAt);
   return (
     <Link
-      to="/upload/$clientSlug"
+      to="/dashboard/$clientSlug"
       params={{ clientSlug: client.slug }}
       className={cn(
         "glass-card rounded-xl p-6 flex flex-col gap-3 transition-transform hover:scale-[1.02]",

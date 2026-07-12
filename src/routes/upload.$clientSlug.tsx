@@ -97,9 +97,16 @@ function UploadPage() {
         }
         const mmDataset = await processMariaMaria(parsed, fileB);
         finalDataset = { ...parsed, mariaMaria: mmDataset };
+        // Maria Maria depende do cruzamento com a planilha do salão (em memória),
+        // então abre o dashboard baseado no store para preservar esses dados.
+        setData(finalDataset, { clientName: client.name, period, mode });
+        navigate({ to: "/dashboard" });
+        return;
       }
+      // Demais clientes: dados já persistidos no banco — abre o dashboard do
+      // cliente, que relê tudo do D1 (acumulado, não só o upload atual).
       setData(finalDataset, { clientName: client.name, period, mode });
-      navigate({ to: "/dashboard" });
+      navigate({ to: "/dashboard/$clientSlug", params: { clientSlug: client.slug } });
     } catch (e) {
       setError(
         e instanceof Error

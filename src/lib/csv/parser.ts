@@ -48,6 +48,32 @@ const STRING_KEYS: CanonicalKey[] = [
   "attribution",
 ];
 
+// Reconstrói um ParsedDataset a partir de linhas já processadas (vindas do banco).
+// As linhas salvas já passaram pela agregação/derivação do parseCsvFile, então aqui
+// só recompomos os metadados (colunas reconhecidas, métricas disponíveis, flags).
+export function datasetFromRows(rows: AdRow[], fileName: string): ParsedDataset {
+  const headers = rows.length ? Object.keys(rows[0].rawData ?? {}) : [];
+  const { index, recognized, unrecognized } = buildColumnIndex(headers);
+  const availableMetrics = (Object.keys(index) as CanonicalKey[]).filter((k) =>
+    NUMERIC_KEYS.includes(k),
+  );
+  const missingMetrics = NUMERIC_KEYS.filter((k) => !index[k]);
+  return {
+    fileName,
+    rows,
+    totalRows: rows.length,
+    totalColumns: headers.length,
+    recognizedColumns: recognized,
+    unrecognizedColumns: unrecognized,
+    availableMetrics,
+    missingMetrics,
+    hasDate: !!index.date,
+    hasCampaign: !!index.campaignName,
+    hasAdSet: !!index.adSetName,
+    hasAd: !!index.adName,
+  };
+}
+
 export async function parseCsvFile(file: File): Promise<ParsedDataset> {
   return new Promise((resolve, reject) => {
     Papa.parse<Record<string, string>>(file, {
