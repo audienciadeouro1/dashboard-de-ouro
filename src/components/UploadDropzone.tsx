@@ -15,6 +15,7 @@ export function UploadDropzone({ onFile, loading, fileName, description }: Uploa
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       setDragOver(false);
       const file = e.dataTransfer.files?.[0];
       if (file) onFile(file);
@@ -26,9 +27,14 @@ export function UploadDropzone({ onFile, loading, fileName, description }: Uploa
     <label
       onDragOver={(e) => {
         e.preventDefault();
+        e.stopPropagation();
         setDragOver(true);
       }}
-      onDragLeave={() => setDragOver(false)}
+      onDragLeave={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+      }}
       onDrop={handleDrop}
       className={cn(
         "relative block cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all",
@@ -47,6 +53,7 @@ export function UploadDropzone({ onFile, loading, fileName, description }: Uploa
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) onFile(f);
+          e.currentTarget.value = "";
         }}
       />
       <div className="flex flex-col items-center gap-4">
