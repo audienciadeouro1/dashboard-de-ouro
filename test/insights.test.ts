@@ -119,4 +119,23 @@ describe("insights repo", () => {
   it("adKeyFor compõe campanha|conjunto|anúncio", () => {
     expect(adKeyFor(makeRow())).toBe("Campanha A|Conjunto 1|Anúncio X");
   });
+
+  it("CSV com data brasileira (DD/MM/YYYY) é filtrável por período ISO", async () => {
+    // Bug real: CSVs da Meta em PT-BR gravam '05/07/2026'; o filtro SQL compara texto ISO.
+    await upsertInsights(
+      env.DB,
+      clientId,
+      [makeRow({ date: "05/07/2026" }), makeRow({ date: "20/06/2026", adName: "Anúncio Y" })],
+      "csv",
+    );
+    const july = await getInsights(env.DB, clientId, { start: "2026-07-01", end: "2026-07-31" });
+    expect(july).toHaveLength(1);
+    // row_json preserva o formato original do CSV (nada muda na tela)
+    expect(july[0].date).toBe("05/07/2026");
+    // e o intervalo disponível sai em ISO
+    expect(await getDataRange(env.DB, clientId)).toEqual({
+      minDate: "2026-06-20",
+      maxDate: "2026-07-05",
+    });
+  });
 });

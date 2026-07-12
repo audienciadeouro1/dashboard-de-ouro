@@ -1,5 +1,6 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import type { AdRow } from "../csv/types";
+import { normalizeDateToISO } from "../dates";
 
 export type InsightSource = "csv" | "meta_api";
 
@@ -45,7 +46,9 @@ export async function upsertInsights(
       chunk.map((r) =>
         stmt.bind(
           clientId,
-          r.date,
+          // Coluna date sempre em YYYY-MM-DD (filtros/MIN/MAX comparam texto);
+          // o row_json preserva o formato original do CSV para a tela.
+          normalizeDateToISO(r.date),
           adKeyFor(r),
           r.campaignName,
           r.adSetName,
