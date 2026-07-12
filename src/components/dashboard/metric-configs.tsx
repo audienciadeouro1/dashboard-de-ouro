@@ -1,0 +1,120 @@
+import {
+  Award,
+  DollarSign,
+  Eye,
+  Hash,
+  Heart,
+  MessageCircle,
+  MousePointerClick,
+  Play,
+  RefreshCw,
+  Repeat,
+  ShieldCheck,
+  ShoppingBag,
+  Target,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { fmtBRL, fmtCompact, fmtNum, fmtPct } from "@/lib/csv/format";
+import type { CanonicalKey } from "@/lib/csv/normalize";
+
+export const METRIC_CONFIGS: Record<
+  CanonicalKey,
+  { label: string; icon: React.ReactNode; formatter: (v: number) => string }
+> = {
+  spend: { label: "Investimento", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
+  impressions: { label: "Impressões", icon: <Eye className="w-4 h-4" />, formatter: fmtCompact },
+  reach: { label: "Alcance", icon: <Users className="w-4 h-4" />, formatter: fmtCompact },
+  frequency: {
+    label: "Frequência",
+    icon: <Repeat className="w-4 h-4" />,
+    formatter: (v) => `${fmtNum(v, 2)}x`,
+  },
+  clicks: {
+    label: "Cliques no link",
+    icon: <MousePointerClick className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
+  ctr: { label: "CTR", icon: <TrendingUp className="w-4 h-4" />, formatter: fmtPct },
+  cpc: { label: "CPC", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
+  cpm: { label: "CPM", icon: <Target className="w-4 h-4" />, formatter: fmtBRL },
+  results: { label: "Resultados", icon: <Target className="w-4 h-4" />, formatter: fmtNum },
+  purchases: { label: "Compras", icon: <ShoppingBag className="w-4 h-4" />, formatter: fmtNum },
+  cpa: { label: "CPA", icon: <Target className="w-4 h-4" />, formatter: fmtBRL },
+  conversionValue: {
+    label: "Faturamento",
+    icon: <TrendingUp className="w-4 h-4" />,
+    formatter: fmtBRL,
+  },
+  averageConversionValue: {
+    label: "Valor médio (Meta)",
+    icon: <DollarSign className="w-4 h-4" />,
+    formatter: fmtBRL,
+  },
+  roas: {
+    label: "ROAS (Meta)",
+    icon: <Award className="w-4 h-4" />,
+    formatter: (v) => `${fmtNum(v, 2)}x`,
+  },
+  conversations: {
+    label: "Conversas",
+    icon: <MessageCircle className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
+  costPerConversation: {
+    label: "Custo por conversa",
+    icon: <Target className="w-4 h-4" />,
+    formatter: fmtBRL,
+  },
+  videoPlays: {
+    label: "Reproduções de vídeo",
+    icon: <Play className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
+  thruplays: { label: "ThruPlays", icon: <Award className="w-4 h-4" />, formatter: fmtNum },
+  video25: { label: "Vídeo 25%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
+  video50: { label: "Vídeo 50%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
+  video75: { label: "Vídeo 75%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
+  video95: { label: "Vídeo 95%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
+  engagement: { label: "Engajamento", icon: <Heart className="w-4 h-4" />, formatter: fmtNum },
+  reactions: { label: "Reações", icon: <Heart className="w-4 h-4" />, formatter: fmtNum },
+  comments: {
+    label: "Comentários",
+    icon: <MessageCircle className="w-4 h-4" />,
+    formatter: fmtNum,
+  },
+  shares: { label: "Compartilhamentos", icon: <Repeat className="w-4 h-4" />, formatter: fmtNum },
+  resultIndicator: {
+    label: "Indicador",
+    icon: <Hash className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
+  resultUnit: { label: "Unidade", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  costPerResult: {
+    label: "Custo / Resultado",
+    icon: <Target className="w-4 h-4" />,
+    formatter: fmtBRL,
+  },
+  campaignName: { label: "Nome", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  adSetName: { label: "Conjunto", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  adName: { label: "Anúncio", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  date: { label: "Data início", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  endDate: { label: "Término", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  objective: { label: "Objetivo", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
+  delivery: {
+    label: "Veiculação",
+    icon: <RefreshCw className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
+  budget: { label: "Orçamento", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
+  budgetType: {
+    label: "Tipo Orçamento",
+    icon: <Hash className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
+  attribution: {
+    label: "Atribuição",
+    icon: <ShieldCheck className="w-4 h-4" />,
+    formatter: (v) => String(v),
+  },
+};

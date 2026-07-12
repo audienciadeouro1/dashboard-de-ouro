@@ -87,6 +87,18 @@ import {
   CommandList,
 } from "@/components/ui/command";
 
+import {
+  GOLD,
+  GOLD_BRIGHT,
+  GOLD_DARK,
+  SUCCESS,
+  DANGER,
+  WARNING,
+  PALETTE,
+} from "@/components/dashboard/theme";
+import { METRIC_CONFIGS } from "@/components/dashboard/metric-configs";
+import { DateRangePicker } from "@/components/dashboard/DateRangePicker";
+
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: async () => {
     const session = await checkSession();
@@ -109,114 +121,6 @@ function DashboardLayout() {
   return <Outlet />;
 }
 
-const GOLD = "oklch(0.83 0.16 88)";
-const GOLD_BRIGHT = "oklch(0.88 0.18 92)";
-const GOLD_DARK = "oklch(0.6 0.13 75)";
-const SUCCESS = "oklch(0.72 0.18 150)";
-const DANGER = "oklch(0.65 0.22 25)";
-const WARNING = "oklch(0.78 0.16 60)";
-const PALETTE = [GOLD_BRIGHT, GOLD, GOLD_DARK, WARNING, SUCCESS, DANGER];
-
-const METRIC_CONFIGS: Record<
-  CanonicalKey,
-  { label: string; icon: React.ReactNode; formatter: (v: number) => string }
-> = {
-  spend: { label: "Investimento", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
-  impressions: { label: "Impressões", icon: <Eye className="w-4 h-4" />, formatter: fmtCompact },
-  reach: { label: "Alcance", icon: <Users className="w-4 h-4" />, formatter: fmtCompact },
-  frequency: {
-    label: "Frequência",
-    icon: <Repeat className="w-4 h-4" />,
-    formatter: (v) => `${fmtNum(v, 2)}x`,
-  },
-  clicks: {
-    label: "Cliques no link",
-    icon: <MousePointerClick className="w-4 h-4" />,
-    formatter: fmtNum,
-  },
-  ctr: { label: "CTR", icon: <TrendingUp className="w-4 h-4" />, formatter: fmtPct },
-  cpc: { label: "CPC", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
-  cpm: { label: "CPM", icon: <Target className="w-4 h-4" />, formatter: fmtBRL },
-  results: { label: "Resultados", icon: <Target className="w-4 h-4" />, formatter: fmtNum },
-  purchases: { label: "Compras", icon: <ShoppingBag className="w-4 h-4" />, formatter: fmtNum },
-  cpa: { label: "CPA", icon: <Target className="w-4 h-4" />, formatter: fmtBRL },
-  conversionValue: {
-    label: "Faturamento",
-    icon: <TrendingUp className="w-4 h-4" />,
-    formatter: fmtBRL,
-  },
-  averageConversionValue: {
-    label: "Valor médio (Meta)",
-    icon: <DollarSign className="w-4 h-4" />,
-    formatter: fmtBRL,
-  },
-  roas: {
-    label: "ROAS (Meta)",
-    icon: <Award className="w-4 h-4" />,
-    formatter: (v) => `${fmtNum(v, 2)}x`,
-  },
-  conversations: {
-    label: "Conversas",
-    icon: <MessageCircle className="w-4 h-4" />,
-    formatter: fmtNum,
-  },
-  costPerConversation: {
-    label: "Custo por conversa",
-    icon: <Target className="w-4 h-4" />,
-    formatter: fmtBRL,
-  },
-  videoPlays: {
-    label: "Reproduções de vídeo",
-    icon: <Play className="w-4 h-4" />,
-    formatter: fmtNum,
-  },
-  thruplays: { label: "ThruPlays", icon: <Award className="w-4 h-4" />, formatter: fmtNum },
-  video25: { label: "Vídeo 25%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
-  video50: { label: "Vídeo 50%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
-  video75: { label: "Vídeo 75%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
-  video95: { label: "Vídeo 95%", icon: <Play className="w-4 h-4" />, formatter: fmtNum },
-  engagement: { label: "Engajamento", icon: <Heart className="w-4 h-4" />, formatter: fmtNum },
-  reactions: { label: "Reações", icon: <Heart className="w-4 h-4" />, formatter: fmtNum },
-  comments: {
-    label: "Comentários",
-    icon: <MessageCircle className="w-4 h-4" />,
-    formatter: fmtNum,
-  },
-  shares: { label: "Compartilhamentos", icon: <Repeat className="w-4 h-4" />, formatter: fmtNum },
-  resultIndicator: {
-    label: "Indicador",
-    icon: <Hash className="w-4 h-4" />,
-    formatter: (v) => String(v),
-  },
-  resultUnit: { label: "Unidade", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  costPerResult: {
-    label: "Custo / Resultado",
-    icon: <Target className="w-4 h-4" />,
-    formatter: fmtBRL,
-  },
-  campaignName: { label: "Nome", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  adSetName: { label: "Conjunto", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  adName: { label: "Anúncio", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  date: { label: "Data início", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  endDate: { label: "Término", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  objective: { label: "Objetivo", icon: <Hash className="w-4 h-4" />, formatter: (v) => String(v) },
-  delivery: {
-    label: "Veiculação",
-    icon: <RefreshCw className="w-4 h-4" />,
-    formatter: (v) => String(v),
-  },
-  budget: { label: "Orçamento", icon: <DollarSign className="w-4 h-4" />, formatter: fmtBRL },
-  budgetType: {
-    label: "Tipo Orçamento",
-    icon: <Hash className="w-4 h-4" />,
-    formatter: (v) => String(v),
-  },
-  attribution: {
-    label: "Atribuição",
-    icon: <ShieldCheck className="w-4 h-4" />,
-    formatter: (v) => String(v),
-  },
-};
 
 function useStore() {
   return useSyncExternalStore(
@@ -240,77 +144,6 @@ export function useDashboard() {
 }
 
 
-function DateRangePicker({
-  date,
-  setDate,
-}: {
-  date: { from?: Date; to?: Date } | undefined;
-  setDate: (date: { from?: Date; to?: Date } | undefined) => void;
-}) {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 768);
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  return (
-    <div className="grid gap-2 w-full sm:w-auto">
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            id="date"
-            variant={"outline"}
-            className={cn(
-              "w-full sm:w-[260px] justify-start text-left font-normal bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)] hover:bg-[oklch(0.83_0.16_88_/_0.1)]",
-              !date && "text-muted-foreground",
-            )}
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, "dd/MM/yy", { locale: ptBR })} -{" "}
-                  {format(date.to, "dd/MM/yy", { locale: ptBR })}
-                </>
-              ) : (
-                format(date.from, "dd/MM/yy", { locale: ptBR })
-              )
-            ) : (
-              <span>Filtrar por data</span>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 bg-[oklch(0.12_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
-          align="start"
-        >
-          <CalendarComponent
-            initialFocus
-            mode="range"
-            defaultMonth={date?.from}
-            selected={date}
-            onSelect={setDate}
-            numberOfMonths={isMobile ? 1 : 2}
-            locale={ptBR}
-          />
-          <div className="p-3 border-t border-[oklch(0.83_0.16_88_/_0.2)] bg-[oklch(0.16_0_0)]">
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full border-[oklch(0.83_0.16_88_/_0.3)] hover:border-[oklch(0.83_0.16_88_/_0.6)]"
-              onClick={() => setDate(undefined)}
-            >
-              Todo o período
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
 
 export function DashboardContent({
   dataOverride,
