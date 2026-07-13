@@ -92,6 +92,21 @@ export async function getInsights(
   return results.map((r) => JSON.parse(r.row_json) as AdRow);
 }
 
+/** Remove as linhas de um cliente dentro de [start, end] (YYYY-MM-DD). Usado antes
+ * de regravar um período com dados frescos da Meta, evitando dupla contagem. */
+export async function deleteInsightsInRange(
+  db: D1Database,
+  clientId: number,
+  start: string,
+  end: string,
+): Promise<number> {
+  const res = await db
+    .prepare("DELETE FROM ad_daily_insights WHERE client_id = ? AND date >= ? AND date <= ?")
+    .bind(clientId, start, end)
+    .run();
+  return res.meta.changes ?? 0;
+}
+
 export async function getDataRange(
   db: D1Database,
   clientId: number,

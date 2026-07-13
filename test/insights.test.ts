@@ -1,7 +1,13 @@
 import { env } from "cloudflare:test";
 import { describe, it, expect, beforeEach } from "vitest";
 import { createClient } from "../src/lib/server/clients";
-import { upsertInsights, getInsights, getDataRange, adKeyFor } from "../src/lib/server/insights";
+import {
+  upsertInsights,
+  getInsights,
+  getDataRange,
+  adKeyFor,
+  deleteInsightsInRange,
+} from "../src/lib/server/insights";
 import type { AdRow } from "../src/lib/csv/types";
 
 function makeRow(overrides: Partial<AdRow> = {}): AdRow {
@@ -118,6 +124,23 @@ describe("insights repo", () => {
 
   it("adKeyFor compõe campanha|conjunto|anúncio", () => {
     expect(adKeyFor(makeRow())).toBe("Campanha A|Conjunto 1|Anúncio X");
+  });
+
+  it("apaga somente as linhas do intervalo (delete-and-replace)", async () => {
+    await upsertInsights(
+      env.DB,
+      clientId,
+      [
+        makeRow({ date: "2026-06-15" }),
+        makeRow({ date: "2026-07-01" }),
+        makeRow({ date: "2026-07-20" }),
+      ],
+      "csv",
+    );
+    const removed = await deleteInsightsInRange(env.DB, clientId, "2026-07-01", "2026-07-31");
+    expect(removed).toBe(2);
+    const rest = await getInsights(env.DB, clientId);
+    expect(rest.map((r) => r.date)).toEqual(["2026-06-15"]);
   });
 
   it("CSV com data brasileira (DD/MM/YYYY) é filtrável por período ISO", async () => {

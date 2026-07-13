@@ -6,6 +6,10 @@ export interface WorkerEnv {
   // em dev via .dev.vars (gitignorado). Nunca no código.
   AUTH_EMAIL?: string;
   AUTH_PASSWORD?: string;
+  // Integração Meta API: token de System User (produção via wrangler secret,
+  // dev via .dev.vars). Versão opcional (default v21.0). Nunca no código.
+  META_ACCESS_TOKEN?: string;
+  META_API_VERSION?: string;
 }
 
 let cached: WorkerEnv | null = null;
