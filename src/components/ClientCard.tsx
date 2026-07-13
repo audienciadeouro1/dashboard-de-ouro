@@ -2,10 +2,18 @@ import { Link } from "@tanstack/react-router";
 import { AlertTriangle, CalendarCheck } from "lucide-react";
 import type { Client } from "@/lib/server/clients";
 import { ANALYSIS_MODES } from "@/lib/csv/types";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
 function profileLabel(profile: Client["dashboardProfile"]): string {
   return ANALYSIS_MODES.find((m) => m.id === profile)?.label ?? profile;
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 function formatDate(iso: string): string {
@@ -31,9 +39,17 @@ export function ClientCard({ client }: { client: Client }) {
         stale ? "border-[oklch(0.78_0.16_60_/_0.4)]" : "border-[oklch(0.83_0.16_88_/_0.2)]",
       )}
     >
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-foreground">{client.name}</h3>
-        {stale && <AlertTriangle className="w-4 h-4 text-[oklch(0.85_0.16_60)]" />}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Avatar className="h-11 w-11 border border-[oklch(0.83_0.16_88_/_0.3)]">
+            {client.logoUrl && <AvatarImage src={client.logoUrl} alt={client.name} />}
+            <AvatarFallback className="bg-[oklch(0.83_0.16_88_/_0.12)] text-[oklch(0.88_0.18_92)] text-sm font-semibold">
+              {initials(client.name)}
+            </AvatarFallback>
+          </Avatar>
+          <h3 className="text-lg font-semibold text-foreground truncate">{client.name}</h3>
+        </div>
+        {stale && <AlertTriangle className="w-4 h-4 shrink-0 text-[oklch(0.85_0.16_60)]" />}
       </div>
       <p className="text-xs uppercase tracking-wider text-muted-foreground">
         {profileLabel(client.dashboardProfile)}

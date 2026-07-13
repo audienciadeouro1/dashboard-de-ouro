@@ -36,11 +36,7 @@ function labelRange(r: Range): string {
 function DeltaBadge({ value, dir }: { value: number; dir: Direction }) {
   const isFlat = Math.abs(value) < 0.001 || dir === "neutral";
   const good = dir === "up" ? value > 0 : value < 0;
-  const color = isFlat
-    ? "text-muted-foreground"
-    : good
-      ? "text-[#10B981]"
-      : "text-destructive";
+  const color = isFlat ? "text-muted-foreground" : good ? "text-[#10B981]" : "text-destructive";
   const Icon = isFlat ? Minus : value > 0 ? ArrowUpRight : ArrowDownRight;
   return (
     <span className={`inline-flex items-center gap-1 font-medium ${color}`}>
@@ -54,6 +50,7 @@ function DeltaBadge({ value, dir }: { value: number; dir: Direction }) {
 export function CompareTab({ slug, maxDate }: { slug: string; maxDate: string | null }) {
   const [preset, setPreset] = useState<Preset>("7d");
   const [customA, setCustomA] = useState<{ from?: Date; to?: Date } | undefined>();
+  const [customB, setCustomB] = useState<{ from?: Date; to?: Date } | undefined>();
   const [data, setData] = useState<ClientComparison | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,11 +60,17 @@ export function CompareTab({ slug, maxDate }: { slug: string; maxDate: string | 
     if (preset === "custom") {
       if (!customA?.from || !customA?.to) return null;
       const a: Range = { start: toISODate(customA.from), end: toISODate(customA.to) };
-      return { a, b: precedingRange(a) };
+      // Período B é escolhido livremente; se não for informado, usa o período
+      // imediatamente anterior de mesmo tamanho (comportamento padrão anterior).
+      const b: Range =
+        customB?.from && customB?.to
+          ? { start: toISODate(customB.from), end: toISODate(customB.to) }
+          : precedingRange(a);
+      return { a, b };
     }
     if (!maxDate) return null;
     return computeComparePeriods(maxDate, preset);
-  }, [preset, customA, maxDate]);
+  }, [preset, customA, customB, maxDate]);
 
   useEffect(() => {
     if (!ranges) {
@@ -144,17 +147,33 @@ export function CompareTab({ slug, maxDate }: { slug: string; maxDate: string | 
             {p.label}
           </Button>
         ))}
-        {preset === "custom" && (
-          <DateRangePicker date={customA} setDate={setCustomA} />
-        )}
       </div>
+
+      {/* Seletores de período personalizado: A e B escolhidos livremente */}
+      {preset === "custom" && (
+        <div className="flex flex-wrap gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs uppercase tracking-wider text-[oklch(0.83_0.16_88)]">
+              Período A
+            </label>
+            <DateRangePicker date={customA} setDate={setCustomA} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs uppercase tracking-wider text-muted-foreground">
+              Período B (comparar com)
+            </label>
+            <DateRangePicker date={customB} setDate={setCustomB} />
+          </div>
+        </div>
+      )}
 
       {!maxDate && preset !== "custom" && (
         <p className="text-sm text-muted-foreground">Sem dados com data para comparar.</p>
       )}
       {preset === "custom" && !ranges && (
         <p className="text-sm text-muted-foreground">
-          Escolha um período (A). O período anterior de mesmo tamanho (B) é calculado automaticamente.
+          Escolha o Período A. Se você não escolher o Período B, o sistema usa o período anterior de
+          mesmo tamanho automaticamente.
         </p>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}

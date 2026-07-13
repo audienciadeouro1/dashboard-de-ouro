@@ -156,6 +156,7 @@ function ClientDashboard() {
       diagnostics={diagnostics}
       strategicMemory={strategicMemory}
       clientId={client.id}
+      clientLogoUrl={client.logoUrl}
       onCustomKpisChange={onCustomKpisChange}
     />
   );
