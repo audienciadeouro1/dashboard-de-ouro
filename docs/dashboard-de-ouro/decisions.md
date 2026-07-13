@@ -57,3 +57,9 @@ Registro permanente de decisões arquiteturais e de produto. Toda decisão relev
 **Decisão:** executar os pendentes da Fase 1 na ordem: motor de métricas com testes → decompor `dashboard.tsx` → ligar seletor de datas ao servidor → qualidade de dados v1 (selo no topo + detalhes ao clicar). **A lógica atual é o gabarito**: números de hoje são a referência; a fase organiza e acrescenta, nunca altera resultado — o cruzamento de CSVs e a análise avulsa permanecem intactos.
 **Motivo:** os testes de métricas viram rede de proteção da refatoração do dashboard (2.774 linhas); refatorar antes de ter testes seria arriscado.
 **Detalhes:** [../superpowers/specs/2026-07-12-fase-1-fundacao-design.md](../superpowers/specs/2026-07-12-fase-1-fundacao-design.md)
+
+## 2026-07-12 — Fase 4: memória estratégica sem afirmar causalidade
+
+**Decisão:** registrar tarefas e decisões por cliente, vinculando-as opcionalmente a um diagnóstico ou alerta. Cada decisão salva uma foto das métricas do período de referência e compara com o período de acompanhamento.
+**Motivo:** transformar diagnóstico em ação e preservar o aprendizado da operação, sem converter o dashboard em CRM ou atribuir automaticamente uma melhoria/piora a uma única ação.
+**Impacto:** a interface usa a expressão “variação observada” e alerta que outros fatores podem ter influenciado o resultado.

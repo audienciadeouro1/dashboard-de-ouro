@@ -3,7 +3,13 @@ import { useMemo, useState, useEffect } from "react";
 import { Upload, ArrowLeft } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { Button } from "@/components/ui/button";
-import { fetchClientData, fetchClientFunnel, fetchClientDiagnostics, saveClientKpis } from "@/lib/api";
+import {
+  fetchClientData,
+  fetchClientFunnel,
+  fetchClientDiagnostics,
+  fetchClientStrategicMemory,
+  saveClientKpis,
+} from "@/lib/api";
 import { toISODate } from "@/lib/dates";
 import { datasetFromRows } from "@/lib/csv/parser";
 import type { AnalysisMode, ReportConfig } from "@/lib/csv/types";
@@ -27,7 +33,7 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
   }),
   loaderDeps: ({ search }) => ({ start: search.start, end: search.end }),
   loader: async ({ params, deps }) => {
-    const [result, funnel, diagnostics] = await Promise.all([
+    const [result, funnel, diagnostics, strategicMemory] = await Promise.all([
       fetchClientData({
         data: { slug: params.clientSlug, start: deps.start, end: deps.end },
       }),
@@ -37,15 +43,17 @@ export const Route = createFileRoute("/dashboard/$clientSlug")({
       fetchClientDiagnostics({
         data: { slug: params.clientSlug, start: deps.start, end: deps.end },
       }),
+      fetchClientStrategicMemory({ data: params.clientSlug }),
     ]);
     if (!result) throw notFound();
-    return { ...result, funnel, diagnostics };
+    return { ...result, funnel, diagnostics, strategicMemory };
   },
   component: ClientDashboard,
 });
 
 function ClientDashboard() {
-  const { client, rows, externalWeekly, funnel, diagnostics } = Route.useLoaderData();
+  const { client, rows, externalWeekly, funnel, diagnostics, strategicMemory } =
+    Route.useLoaderData();
   const navigate = Route.useNavigate();
   const search = Route.useSearch();
 
@@ -146,6 +154,7 @@ function ClientDashboard() {
       onDateRangeChange={onDateRangeChange}
       funnel={funnel}
       diagnostics={diagnostics}
+      strategicMemory={strategicMemory}
       clientId={client.id}
       onCustomKpisChange={onCustomKpisChange}
     />

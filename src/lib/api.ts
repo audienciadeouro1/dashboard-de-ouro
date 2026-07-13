@@ -19,21 +19,23 @@ async function serverDeps() {
     compare,
     goals,
     diagnostics,
+    strategicMemory,
   ] = await Promise.all([
-      import("./server/db"),
-      import("./server/clients"),
-      import("./server/insights"),
-      import("./server/external"),
-      import("./server/imports"),
-      import("./server/metrics"),
-      import("./server/quality"),
-      import("./server/commercial"),
-      import("./server/funnel-config"),
-      import("./server/funnel"),
-      import("./server/compare"),
-      import("./server/goals"),
-      import("./server/diagnostics"),
-    ]);
+    import("./server/db"),
+    import("./server/clients"),
+    import("./server/insights"),
+    import("./server/external"),
+    import("./server/imports"),
+    import("./server/metrics"),
+    import("./server/quality"),
+    import("./server/commercial"),
+    import("./server/funnel-config"),
+    import("./server/funnel"),
+    import("./server/compare"),
+    import("./server/goals"),
+    import("./server/diagnostics"),
+    import("./server/strategic-memory"),
+  ]);
   const db = await getDb();
   return {
     db,
@@ -49,6 +51,7 @@ async function serverDeps() {
     ...compare,
     ...goals,
     ...diagnostics,
+    ...strategicMemory,
   };
 }
 
@@ -81,9 +84,7 @@ export const fetchClientBySlug = createServerFn({ method: "GET" })
 export const fetchClientData = createServerFn({ method: "GET" })
   .inputValidator((input: { slug: string; start?: string; end?: string }) => input)
   .handler(
-    async ({
-      data,
-    }): Promise<{ client: Client; rows: AdRow[]; externalWeekly?: any[] } | null> => {
+    async ({ data }): Promise<{ client: Client; rows: AdRow[]; externalWeekly?: any[] } | null> => {
       const { db, getClientBySlug, getInsights, getExternalWeeklyData } = await serverDeps();
       const client = await getClientBySlug(db, data.slug);
       if (!client) return null;
@@ -145,7 +146,7 @@ export const ingestCsvRows = createServerFn({ method: "POST" })
 
 export interface ExternalWeeklyInput {
   startDate: string; // YYYY-MM-DD
-  endDate: string;   // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
   contatosWhatsapp: number;
   agendamentos: number;
   agendamentosComServico: number;
@@ -197,13 +198,18 @@ export const persistFunnelConfig = createServerFn({ method: "POST" })
 
 export const importCommercialCsv = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { clientId: number; rows: Record<string, string>[]; refYear: number; fileName?: string }) =>
-      input,
+    (input: {
+      clientId: number;
+      rows: Record<string, string>[];
+      refYear: number;
+      fileName?: string;
+    }) => input,
   )
   .handler(async ({ data }): Promise<{ saved: number }> => {
     const { db, getFunnelConfig, upsertCommercialPeriods, recordImport } = await serverDeps();
     const config = await getFunnelConfig(db, data.clientId);
-    if (!config?.commercial) throw new Error("Configure o mapeamento do funil comercial antes de importar.");
+    if (!config?.commercial)
+      throw new Error("Configure o mapeamento do funil comercial antes de importar.");
     const { buildCommercialPeriods } = await import("./csv/commercial");
     const periods = buildCommercialPeriods(data.rows, config, data.refYear);
     const saved = await upsertCommercialPeriods(db, data.clientId, periods);
@@ -226,8 +232,11 @@ export const fetchCommercialData = createServerFn({ method: "GET" })
 
 export const fetchClientComparison = createServerFn({ method: "GET" })
   .inputValidator(
-    (input: { slug: string; a: { start: string; end: string }; b: { start: string; end: string } }) =>
-      input,
+    (input: {
+      slug: string;
+      a: { start: string; end: string };
+      b: { start: string; end: string };
+    }) => input,
   )
   .handler(async ({ data }) => {
     const { db, getClientBySlug, getClientComparison } = await serverDeps();
@@ -273,18 +282,113 @@ export const fetchClientDiagnostics = createServerFn({ method: "GET" })
   });
 
 export const saveClientGoal = createServerFn({ method: "POST" })
-  .inputValidator((input: { clientId: number; metric: string; target: number | null; limitValue: number | null; active: boolean }) => input)
+  .inputValidator(
+    (input: {
+      clientId: number;
+      metric: string;
+      target: number | null;
+      limitValue: number | null;
+      active: boolean;
+    }) => input,
+  )
   .handler(async ({ data }) => {
     const { db, saveGoal } = await serverDeps();
-    return saveGoal(db, { clientId: data.clientId, metric: data.metric as never, target: data.target, limitValue: data.limitValue, active: data.active });
+    return saveGoal(db, {
+      clientId: data.clientId,
+      metric: data.metric as never,
+      target: data.target,
+      limitValue: data.limitValue,
+      active: data.active,
+    });
+  });
+
+// --- Fase 4: memória estratégica (tarefas e decisões agregadas por cliente) ---
+
+export const fetchClientStrategicMemory = createServerFn({ method: "GET" })
+  .inputValidator((slug: string) => slug)
+  .handler(async ({ data: slug }) => {
+    const { db, getClientBySlug, getClientStrategicMemory } = await serverDeps();
+    const client = await getClientBySlug(db, slug);
+    if (!client) return null;
+    return getClientStrategicMemory(db, client.id);
+  });
+
+export const createClientTask = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      clientId: number;
+      title: string;
+      description?: string | null;
+      priority: "low" | "medium" | "high";
+      dueDate?: string | null;
+      origin?: {
+        type: "manual" | "diagnostic" | "alert" | "decision";
+        key?: string | null;
+        title?: string | null;
+      };
+      decisionId?: number | null;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { db, createStrategicTask } = await serverDeps();
+    return createStrategicTask(db, data);
+  });
+
+export const updateClientTaskStatus = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { clientId: number; taskId: number; status: "open" | "completed" }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { db, updateStrategicTaskStatus } = await serverDeps();
+    return updateStrategicTaskStatus(db, data);
+  });
+
+export const createClientDecision = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      clientId: number;
+      title: string;
+      rationale: string;
+      entityType?: string;
+      entityName?: string | null;
+      origin?: {
+        type: "manual" | "diagnostic" | "alert";
+        key?: string | null;
+        title?: string | null;
+      };
+      baselineStart: string;
+      baselineEnd: string;
+      evaluationStart: string;
+      evaluationEnd: string;
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { db, createStrategicDecision } = await serverDeps();
+    return createStrategicDecision(db, data);
+  });
+
+export const saveClientDecisionObservation = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      clientId: number;
+      decisionId: number;
+      resultNote: string | null;
+      status: "active" | "reviewed" | "archived";
+    }) => input,
+  )
+  .handler(async ({ data }) => {
+    const { db, updateDecisionObservation } = await serverDeps();
+    return updateDecisionObservation(db, data);
   });
 
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 
-export const checkSession = createServerFn({ method: "GET" }).handler(async (): Promise<{ authenticated: boolean }> => {
-  const session = getCookie("session");
-  return { authenticated: session === "authenticated" };
-});
+export const checkSession = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ authenticated: boolean }> => {
+    const session = getCookie("session");
+    return { authenticated: session === "authenticated" };
+  },
+);
 
 export const login = createServerFn({ method: "POST" })
   .inputValidator((input: { email: string; password: string }) => input)
@@ -304,18 +408,19 @@ export const login = createServerFn({ method: "POST" })
         path: "/",
         httpOnly: true,
         sameSite: "lax",
-        secure: process.env.NODE_ENV === "production"
+        secure: process.env.NODE_ENV === "production",
       });
       return { success: true };
     }
     return { success: false, error: "Credenciais inválidas" };
   });
 
-export const logout = createServerFn({ method: "POST" }).handler(async (): Promise<{ success: boolean }> => {
-  setCookie("session", "", {
-    maxAge: 0,
-    path: "/"
-  });
-  return { success: true };
-});
-
+export const logout = createServerFn({ method: "POST" }).handler(
+  async (): Promise<{ success: boolean }> => {
+    setCookie("session", "", {
+      maxAge: 0,
+      path: "/",
+    });
+    return { success: true };
+  },
+);

@@ -17,6 +17,7 @@ Desenvolvimento em fases. Não implementar tudo de uma vez; cada fase gera plano
 Já existe: D1, `clients`, `ad_daily_insights` idempotente, `external_weekly_data`, upload por cliente, dashboard lendo do banco, login, 13 testes.
 
 Pendente:
+
 - [x] 1.1 Saneamento (2026-07-12, branch `v1.4-nova-fase-sistema`): senha movida para secrets (AUTH_EMAIL/AUTH_PASSWORD via wrangler secret + .dev.vars), enum de perfis unificado (`DashboardProfile` = `AnalysisMode`, legados `pixel_sales`/`whatsapp_external` removidos), tabela `leads` removida (migração 0004)
 - [x] 1.2 `csv_imports` — histórico de importações (migração 0005 + `server/imports.ts` + registro automático nas ingestões)
 - [x] 1.3 Filtro de período no servidor (`fetchClientData` aceita `start`/`end`) + `clicks`/`reach` promovidos a colunas com backfill (migração 0006). Seletor de datas da UI ligado ao servidor via search params (2026-07-12); correção crítica: coluna `date` normalizada para YYYY-MM-DD (migração 0007 — CSVs PT-BR gravavam DD/MM/YYYY e quebravam o filtro)
@@ -45,11 +46,13 @@ Pendente:
 
 Implementação da Fase 3: `ClientDiagnosticsTab`, `getClientDiagnostics` e `saveClientGoal`. As ações de tarefa/decisão permanecem para a Fase 4, quando existirão as tabelas `tasks` e `decisions`.
 
-## FASE 4 — Memória estratégica
+## FASE 4 — Memória estratégica ✅ (2026-07-12)
 
-- [ ] `decisions` — registro com métricas antes/depois e período de avaliação
-- [ ] `tasks` — central de tarefas com origem rastreada
-- [ ] Análise antes/depois sem afirmar causalidade
+- [x] `decisions` — registro com métricas antes/depois e período de avaliação
+- [x] `tasks` — central de tarefas com origem rastreada
+- [x] Análise antes/depois sem afirmar causalidade
+
+Implementação: migração `0012`, tarefas e decisões vinculadas ao cliente, ações criadas a partir de diagnósticos/alertas e comparação de métricas observadas com aviso explícito de não causalidade.
 
 ## FASE 5 — Analista de Ouro
 

@@ -1,5 +1,12 @@
 import { createFileRoute, Link, Outlet, redirect } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, useSyncExternalStore, createContext, useContext } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  createContext,
+  useContext,
+} from "react";
 import {
   ArrowLeft,
   DollarSign,
@@ -122,6 +129,7 @@ import { CompareTab } from "@/components/dashboard/CompareTab";
 import { ClientDiagnosticsTab } from "@/components/dashboard/ClientDiagnosticsTab";
 import type { FunnelResult } from "@/lib/metrics/funnel";
 import type { ClientDiagnostics } from "@/lib/server/diagnostics";
+import type { StrategicMemory } from "@/lib/metrics/strategic-memory";
 import { normalizeDateToISO } from "@/lib/dates";
 
 export const Route = createFileRoute("/dashboard")({
@@ -146,7 +154,6 @@ function DashboardLayout() {
   return <Outlet />;
 }
 
-
 function useStore() {
   return useSyncExternalStore(
     subscribe,
@@ -155,14 +162,13 @@ function useStore() {
   );
 }
 
-
-
 export function DashboardContent({
   dataOverride,
   uploadSlug,
   onDateRangeChange,
   funnel,
   diagnostics,
+  strategicMemory,
   clientId,
   onCustomKpisChange,
 }: {
@@ -174,6 +180,8 @@ export function DashboardContent({
   funnel?: FunnelResult | null;
   /** Diagnósticos determinísticos do dashboard persistido. */
   diagnostics?: ClientDiagnostics | null;
+  /** Tarefas e decisões registradas para este cliente. */
+  strategicMemory?: StrategicMemory | null;
   clientId?: number;
   /** Dashboards de cliente: persiste as métricas extras no banco. */
   onCustomKpisChange?: (kpis: CanonicalKey[]) => void;
@@ -200,9 +208,7 @@ export function DashboardContent({
 
   // Aba Funil aparece quando há um funil com pelo menos 2 etapas e dados no topo
   // (funil comercial da Maria Maria ou funil de pixel do Aki Sushi).
-  const showFunnel = Boolean(
-    funnel && funnel.stages.length >= 2 && funnel.stages[0].count > 0,
-  );
+  const showFunnel = Boolean(funnel && funnel.stages.length >= 2 && funnel.stages[0].count > 0);
 
   // Comparador: só nos dashboards de cliente (têm slug) e com dados datados.
   const showCompare = Boolean(uploadSlug && dataset.hasDate);
@@ -274,199 +280,208 @@ export function DashboardContent({
   return (
     <DashboardContext.Provider value={{ dataset, config, onCustomKpisChange }}>
       <div className="min-h-screen">
-      <BrandHeader
-        showHomeLink
-        right={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.print()}
-              className="text-foreground/80 hover:text-[oklch(0.83_0.16_88)]"
-            >
-              <Printer className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Imprimir</span>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="sm"
-              className="border-[oklch(0.83_0.16_88_/_0.3)] hover:border-[oklch(0.83_0.16_88_/_0.6)]"
-            >
-              {uploadSlug ? (
-                <Link to="/upload/$clientSlug" params={{ clientSlug: uploadSlug }}>
-                  <RefreshCw className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Atualizar dados</span>
-                </Link>
-              ) : (
-                <Link to="/">
-                  <RefreshCw className="w-4 h-4 sm:mr-1.5" /> <span className="hidden sm:inline">Trocar arquivo</span>
-                </Link>
-              )}
-            </Button>
-          </div>
-        }
-      />
+        <BrandHeader
+          showHomeLink
+          right={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.print()}
+                className="text-foreground/80 hover:text-[oklch(0.83_0.16_88)]"
+              >
+                <Printer className="w-4 h-4 sm:mr-1.5" />{" "}
+                <span className="hidden sm:inline">Imprimir</span>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="border-[oklch(0.83_0.16_88_/_0.3)] hover:border-[oklch(0.83_0.16_88_/_0.6)]"
+              >
+                {uploadSlug ? (
+                  <Link to="/upload/$clientSlug" params={{ clientSlug: uploadSlug }}>
+                    <RefreshCw className="w-4 h-4 sm:mr-1.5" />{" "}
+                    <span className="hidden sm:inline">Atualizar dados</span>
+                  </Link>
+                ) : (
+                  <Link to="/">
+                    <RefreshCw className="w-4 h-4 sm:mr-1.5" />{" "}
+                    <span className="hidden sm:inline">Trocar arquivo</span>
+                  </Link>
+                )}
+              </Button>
+            </div>
+          }
+        />
 
-      <main className="mx-auto max-w-[1600px] px-6 py-8 space-y-6">
-        {/* Header info */}
-        <div className="flex items-end justify-between flex-wrap gap-4 no-print">
-          <div>
-            <Link
-              to="/"
-              className="inline-flex items-center text-xs text-muted-foreground hover:text-[oklch(0.83_0.16_88)] mb-2"
-            >
-              <ArrowLeft className="w-3 h-3 mr-1" /> Voltar ao painel
-            </Link>
-            <h1 className="font-display text-3xl md:text-4xl font-bold">
-              {config.clientName || "Análise de Campanhas"}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {config.period && <span>{config.period} · </span>}
-              {filteredRows.length} de {dataset.totalRows} linhas ·{" "}
-              <span className="text-[oklch(0.83_0.16_88)] capitalize">modo {config.mode}</span>
-            </p>
+        <main className="mx-auto max-w-[1600px] px-6 py-8 space-y-6">
+          {/* Header info */}
+          <div className="flex items-end justify-between flex-wrap gap-4 no-print">
+            <div>
+              <Link
+                to="/"
+                className="inline-flex items-center text-xs text-muted-foreground hover:text-[oklch(0.83_0.16_88)] mb-2"
+              >
+                <ArrowLeft className="w-3 h-3 mr-1" /> Voltar ao painel
+              </Link>
+              <h1 className="font-display text-3xl md:text-4xl font-bold">
+                {config.clientName || "Análise de Campanhas"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {config.period && <span>{config.period} · </span>}
+                {filteredRows.length} de {dataset.totalRows} linhas ·{" "}
+                <span className="text-[oklch(0.83_0.16_88)] capitalize">modo {config.mode}</span>
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Filters */}
-        <div className="glass-card rounded-xl p-4 flex flex-wrap items-center gap-3 no-print">
-          <div className="relative w-full md:flex-1 md:min-w-[200px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar campanha, conjunto ou anúncio..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
-            />
-          </div>
-          <DateRangePicker date={dateRange} setDate={handleDateRange} />
-          {uploadSlug && (
-            <QualityBadge
-              slug={uploadSlug}
-              start={dateRange?.from ? toISODate(dateRange.from) : undefined}
-              end={dateRange?.to ? toISODate(dateRange.to) : undefined}
-            />
-          )}
-          <Select value={campaignFilter} onValueChange={setCampaignFilter}>
-            <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
-              <SelectValue placeholder="Campanha" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas as campanhas</SelectItem>
-              {allCampaigns.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {dataset.hasAdSet && (
-            <Select value={adSetFilter} onValueChange={setAdSetFilter}>
+          {/* Filters */}
+          <div className="glass-card rounded-xl p-4 flex flex-wrap items-center gap-3 no-print">
+            <div className="relative w-full md:flex-1 md:min-w-[200px]">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar campanha, conjunto ou anúncio..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
+              />
+            </div>
+            <DateRangePicker date={dateRange} setDate={handleDateRange} />
+            {uploadSlug && (
+              <QualityBadge
+                slug={uploadSlug}
+                start={dateRange?.from ? toISODate(dateRange.from) : undefined}
+                end={dateRange?.to ? toISODate(dateRange.to) : undefined}
+              />
+            )}
+            <Select value={campaignFilter} onValueChange={setCampaignFilter}>
               <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
-                <SelectValue placeholder="Conjunto" />
+                <SelectValue placeholder="Campanha" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os conjuntos</SelectItem>
-                {allAdSets.map((c) => (
+                <SelectItem value="all">Todas as campanhas</SelectItem>
+                {allCampaigns.map((c) => (
                   <SelectItem key={c} value={c}>
                     {c}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          )}
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
-          <TabsList className="bg-[oklch(0.14_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] p-1 h-12 flex flex-row overflow-x-auto justify-start max-w-full no-scrollbar flex-nowrap no-print w-full sm:w-auto">
-            {[
-              ["overview", "Visão Geral"],
-              ...(showFunnel ? [["funnel", "Funil"]] : []),
-              ...(showCompare ? [["compare", "Comparar"]] : []),
-              ["campaigns", "Campanhas"],
-              ["adsets", "Conjuntos"],
-              ["ads", "Anúncios"],
-              ["charts", "Gráficos"],
-              ["diagnosis", showDiagnostics ? "Diagnóstico" : "Análise"],
-              ["data", "Qualidade dos Dados"],
-              ["report", "Relatório"],
-            ].map(([id, label]) => (
-              <TabsTrigger
-                key={id}
-                value={id}
-                className="data-[state=active]:bg-[oklch(0.83_0.16_88_/_0.15)] data-[state=active]:text-[oklch(0.88_0.18_92)] text-xs md:text-sm flex-shrink-0"
-              >
-                {label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          <TabsContent value="overview">
-            <OverviewTab
-              totals={totals}
-              series={series}
-              diagnosed={diagnosed}
-              mode={effectiveMode}
-              hasDate={dataset.hasDate}
-              byCampaign={byCampaign}
-              dateRange={dateRange}
-            />
-          </TabsContent>
-          {showFunnel && funnel && (
-            <TabsContent value="funnel">
-              <FunnelTab funnel={funnel} />
-            </TabsContent>
-          )}
-          {showCompare && uploadSlug && (
-            <TabsContent value="compare">
-              <CompareTab slug={uploadSlug} maxDate={maxDate} />
-            </TabsContent>
-          )}
-          <TabsContent value="campaigns">
-            <CampaignsTab diagnosed={diagnosed} mode={effectiveMode} />
-          </TabsContent>
-          <TabsContent value="adsets">
-            <AggregatedTab
-              data={byAdSet}
-              mode={effectiveMode}
-              dimensionLabel="Conjunto de anúncios"
-            />
-          </TabsContent>
-          <TabsContent value="ads">
-            <AdsTab data={byAd} />
-          </TabsContent>
-          <TabsContent value="charts">
-            <ChartsTab
-              byCampaign={byCampaign}
-              series={series}
-              hasDate={dataset.hasDate}
-              mode={effectiveMode}
-              totals={totals}
-            />
-          </TabsContent>
-          <TabsContent value="diagnosis">
-            {diagnostics && clientId ? (
-              <ClientDiagnosticsTab clientId={clientId} goals={diagnostics.goals} diagnostics={diagnostics.diagnostics} alerts={diagnostics.alerts} />
-            ) : (
-              <DiagnosisTab dx={accountDx} diagnosed={diagnosed} mode={effectiveMode} />
+            {dataset.hasAdSet && (
+              <Select value={adSetFilter} onValueChange={setAdSetFilter}>
+                <SelectTrigger className="w-full sm:w-[220px] bg-[oklch(0.16_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]">
+                  <SelectValue placeholder="Conjunto" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os conjuntos</SelectItem>
+                  {allAdSets.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
-          </TabsContent>
-          <TabsContent value="data">
-            <DataQualityTab />
-          </TabsContent>
-          <TabsContent value="report">
-            <ReportTab
-              totals={totals}
-              diagnosed={diagnosed}
-              dx={accountDx}
-              mode={effectiveMode}
-              series={series}
-              hasDate={dataset.hasDate}
-            />
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+          </div>
+
+          {/* Tabs */}
+          <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+            <TabsList className="bg-[oklch(0.14_0_0)] border border-[oklch(0.83_0.16_88_/_0.15)] p-1 h-12 flex flex-row overflow-x-auto justify-start max-w-full no-scrollbar flex-nowrap no-print w-full sm:w-auto">
+              {[
+                ["overview", "Visão Geral"],
+                ...(showFunnel ? [["funnel", "Funil"]] : []),
+                ...(showCompare ? [["compare", "Comparar"]] : []),
+                ["campaigns", "Campanhas"],
+                ["adsets", "Conjuntos"],
+                ["ads", "Anúncios"],
+                ["charts", "Gráficos"],
+                ["diagnosis", showDiagnostics ? "Diagnóstico" : "Análise"],
+                ["data", "Qualidade dos Dados"],
+                ["report", "Relatório"],
+              ].map(([id, label]) => (
+                <TabsTrigger
+                  key={id}
+                  value={id}
+                  className="data-[state=active]:bg-[oklch(0.83_0.16_88_/_0.15)] data-[state=active]:text-[oklch(0.88_0.18_92)] text-xs md:text-sm flex-shrink-0"
+                >
+                  {label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="overview">
+              <OverviewTab
+                totals={totals}
+                series={series}
+                diagnosed={diagnosed}
+                mode={effectiveMode}
+                hasDate={dataset.hasDate}
+                byCampaign={byCampaign}
+                dateRange={dateRange}
+              />
+            </TabsContent>
+            {showFunnel && funnel && (
+              <TabsContent value="funnel">
+                <FunnelTab funnel={funnel} />
+              </TabsContent>
+            )}
+            {showCompare && uploadSlug && (
+              <TabsContent value="compare">
+                <CompareTab slug={uploadSlug} maxDate={maxDate} />
+              </TabsContent>
+            )}
+            <TabsContent value="campaigns">
+              <CampaignsTab diagnosed={diagnosed} mode={effectiveMode} />
+            </TabsContent>
+            <TabsContent value="adsets">
+              <AggregatedTab
+                data={byAdSet}
+                mode={effectiveMode}
+                dimensionLabel="Conjunto de anúncios"
+              />
+            </TabsContent>
+            <TabsContent value="ads">
+              <AdsTab data={byAd} />
+            </TabsContent>
+            <TabsContent value="charts">
+              <ChartsTab
+                byCampaign={byCampaign}
+                series={series}
+                hasDate={dataset.hasDate}
+                mode={effectiveMode}
+                totals={totals}
+              />
+            </TabsContent>
+            <TabsContent value="diagnosis">
+              {diagnostics && clientId ? (
+                <ClientDiagnosticsTab
+                  clientId={clientId}
+                  goals={diagnostics.goals}
+                  diagnostics={diagnostics.diagnostics}
+                  alerts={diagnostics.alerts}
+                  strategicMemory={strategicMemory ?? { tasks: [], decisions: [] }}
+                />
+              ) : (
+                <DiagnosisTab dx={accountDx} diagnosed={diagnosed} mode={effectiveMode} />
+              )}
+            </TabsContent>
+            <TabsContent value="data">
+              <DataQualityTab />
+            </TabsContent>
+            <TabsContent value="report">
+              <ReportTab
+                totals={totals}
+                diagnosed={diagnosed}
+                dx={accountDx}
+                mode={effectiveMode}
+                series={series}
+                hasDate={dataset.hasDate}
+              />
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </DashboardContext.Provider>
   );
 }
