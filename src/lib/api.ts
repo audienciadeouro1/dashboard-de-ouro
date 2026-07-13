@@ -20,6 +20,7 @@ async function serverDeps() {
     goals,
     diagnostics,
     strategicMemory,
+    meta,
   ] = await Promise.all([
     import("./server/db"),
     import("./server/clients"),
@@ -35,6 +36,7 @@ async function serverDeps() {
     import("./server/goals"),
     import("./server/diagnostics"),
     import("./server/strategic-memory"),
+    import("./server/meta"),
   ]);
   const db = await getDb();
   return {
@@ -52,6 +54,7 @@ async function serverDeps() {
     ...goals,
     ...diagnostics,
     ...strategicMemory,
+    ...meta,
   };
 }
 
@@ -380,6 +383,42 @@ export const saveClientDecisionObservation = createServerFn({ method: "POST" })
     const { db, updateDecisionObservation } = await serverDeps();
     return updateDecisionObservation(db, data);
   });
+
+// --- Meta API: sincronização de métricas sob demanda ---
+
+export const saveClientMetaAccountId = createServerFn({ method: "POST" })
+  .inputValidator((input: { clientId: number; accountId: string }) => input)
+  .handler(async ({ data }): Promise<Client> => {
+    const { db, updateClient } = await serverDeps();
+    const accountId = data.accountId.trim();
+    return updateClient(db, data.clientId, { metaAdAccountId: accountId || null });
+  });
+
+export const testClientMetaConnection = createServerFn({ method: "POST" })
+  .inputValidator((slug: string) => slug)
+  .handler(async ({ data: slug }): Promise<{ ok: true; accountName: string }> => {
+    const { db, getClientBySlug, testMetaConnection } = await serverDeps();
+    const client = await getClientBySlug(db, slug);
+    if (!client) throw new Error("Cliente não encontrado.");
+    return testMetaConnection(client);
+  });
+
+export const syncClientMeta = createServerFn({ method: "POST" })
+  .inputValidator((input: { slug: string; days?: number }) => input)
+  .handler(
+    async ({ data }): Promise<{ days: number; ads: number; start: string; end: string }> => {
+      const { db, getClientBySlug, syncClientFromMeta } = await serverDeps();
+      const client = await getClientBySlug(db, data.slug);
+      if (!client) throw new Error("Cliente não encontrado.");
+      const result = await syncClientFromMeta(db, client, { days: data.days });
+      return {
+        days: result.days,
+        ads: result.ads,
+        start: result.range.start,
+        end: result.range.end,
+      };
+    },
+  );
 
 import { getCookie, setCookie } from "@tanstack/react-start/server";
 

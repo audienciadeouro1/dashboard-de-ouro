@@ -63,3 +63,10 @@ Registro permanente de decisões arquiteturais e de produto. Toda decisão relev
 **Decisão:** registrar tarefas e decisões por cliente, vinculando-as opcionalmente a um diagnóstico ou alerta. Cada decisão salva uma foto das métricas do período de referência e compara com o período de acompanhamento.
 **Motivo:** transformar diagnóstico em ação e preservar o aprendizado da operação, sem converter o dashboard em CRM ou atribuir automaticamente uma melhoria/piora a uma única ação.
 **Impacto:** a interface usa a expressão “variação observada” e alerta que outros fatores podem ter influenciado o resultado.
+
+## 2026-07-12 — Meta API: sincronização sob demanda
+
+**Decisão:** substituir o upload manual de CSV por uma busca sob demanda na Graph API (botão "Atualizar via Meta"), somente leitura, com token único de System User do Business Manager (app novo dedicado) guardado como secret (`.dev.vars` / `wrangler secret`).
+**Detalhes:** janela móvel de 30 dias por clique; o período sincronizado "pertence à API" (delete-and-replace) para não duplicar quando o nome do anúncio diverge do CSV. Eventos fixos por perfil: Compra (`purchase`/`omni_purchase`) para vendas; conversa iniciada (`messaging_conversation_started_7d`) para WhatsApp/Maria. CSV permanece como fallback de emergência; dados comerciais manuais (salão) intocados.
+**Fora de escopo (por ora):** tela de escolher evento (só com conversão personalizada), sincronização agendada, histórico de importações da Meta, Google Ads.
+**Detalhes:** [../superpowers/specs/2026-07-12-meta-api-sync-design.md](../superpowers/specs/2026-07-12-meta-api-sync-design.md)

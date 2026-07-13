@@ -56,6 +56,7 @@ import {
 } from "recharts";
 
 import { BrandHeader } from "@/components/BrandHeader";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { StatusBadge } from "@/components/dashboard/StatusBadge";
 import { GoldTooltip } from "@/components/dashboard/GoldTooltip";
@@ -170,10 +171,13 @@ export function DashboardContent({
   diagnostics,
   strategicMemory,
   clientId,
+  clientLogoUrl,
   onCustomKpisChange,
 }: {
   dataOverride?: { dataset: ParsedDataset; config: ReportConfig };
   uploadSlug?: string;
+  /** Foto de perfil do cliente (dashboards de cliente); null/ausente mostra as iniciais. */
+  clientLogoUrl?: string | null;
   /** Dashboards de cliente: propaga o período para o servidor (search params). Análise avulsa não passa. */
   onDateRangeChange?: (range: { from?: Date; to?: Date } | undefined) => void;
   /** Funil real (Meta + comercial) calculado no servidor; presente só quando há config + dados comerciais. */
@@ -277,6 +281,16 @@ export function DashboardContent({
 
   if (!dataset || !config) return null;
 
+  const clientInitials =
+    (config.clientName || "?")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "?";
+
   return (
     <DashboardContext.Provider value={{ dataset, config, onCustomKpisChange }}>
       <div className="min-h-screen">
@@ -325,9 +339,19 @@ export function DashboardContent({
               >
                 <ArrowLeft className="w-3 h-3 mr-1" /> Voltar ao painel
               </Link>
-              <h1 className="font-display text-3xl md:text-4xl font-bold">
-                {config.clientName || "Análise de Campanhas"}
-              </h1>
+              <div className="flex items-center gap-4">
+                {uploadSlug && (
+                  <Avatar className="h-14 w-14 border border-[oklch(0.83_0.16_88_/_0.3)]">
+                    {clientLogoUrl && <AvatarImage src={clientLogoUrl} alt={config.clientName} />}
+                    <AvatarFallback className="bg-[oklch(0.83_0.16_88_/_0.12)] text-[oklch(0.88_0.18_92)] text-lg font-semibold">
+                      {clientInitials}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <h1 className="font-display text-3xl md:text-4xl font-bold">
+                  {config.clientName || "Análise de Campanhas"}
+                </h1>
+              </div>
               <p className="text-sm text-muted-foreground mt-1">
                 {config.period && <span>{config.period} · </span>}
                 {filteredRows.length} de {dataset.totalRows} linhas ·{" "}

@@ -53,6 +53,9 @@ export function DateRangePicker({
         <PopoverContent
           className="w-auto p-0 bg-[oklch(0.12_0_0)] border-[oklch(0.83_0.16_88_/_0.2)]"
           align="start"
+          side="bottom"
+          sideOffset={4}
+          avoidCollisions={false}
         >
           <CalendarComponent
             initialFocus

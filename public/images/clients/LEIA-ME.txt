@@ -1,0 +1,12 @@
+Coloque aqui as logos dos clientes para virarem foto de perfil redonda.
+
+Use exatamente estes nomes de arquivo (podem ser .png ou .jpg):
+
+  maria-maria.png   -> cliente "Maria Maria"
+  aki-sushi.png     -> cliente "Aki Sushi"
+
+Pode largar a imagem no tamanho que tiver. O Claude comprime e recorta
+para o tamanho certo (quadrada, 256x256) antes de usar.
+
+Se o cliente não tiver logo, o sistema mostra as iniciais dele num
+círculo dourado automaticamente.
