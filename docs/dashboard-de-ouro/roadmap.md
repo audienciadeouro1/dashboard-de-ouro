@@ -69,9 +69,7 @@ Implementação: migração `0012`, tarefas e decisões vinculadas ao cliente, a
 
 ## Integração Meta Marketing API (transversal, "Fase 2" da spec v1.3)
 
-- [ ] App Meta + system user token (`ads_read`) como secret do Worker
-- [ ] Botão "Atualizar dados": manual, incremental, idempotente, com `meta_sync_runs`
-- [ ] IDs reais da Meta em `ad_daily_insights` (substituindo `ad_key` por nomes)
-- [ ] CSV permanece como fallback
+- [x] Sincronização sob demanda (2026-07-12, branch `v1.6-meta-API`): botão "Atualizar via Meta" (janela móvel de 30 dias, dia a dia, nível de anúncio), token de System User (`ads_read`) como secret, delete-and-replace do período (idempotente, sem duplicar), eventos padrão fixos por perfil (Compra `purchase`/`omni_purchase` para vendas; conversa `messaging_conversation_started_7d` para WhatsApp/Maria). Painel na página de upload com config do ID da conta + "Testar conexão". Clientes: Maria Maria e Aki Sushi. CSV mantido como fallback. Spec: [../superpowers/specs/2026-07-12-meta-api-sync-design.md](../superpowers/specs/2026-07-12-meta-api-sync-design.md)
+- [ ] Futuro: "buscar histórico completo" (primeira carga), registro em histórico de importações (`meta_sync_runs`), tela de escolher evento (para conversão personalizada), Google Ads.
 
 Encaixa naturalmente após a Fase 1 (fundação) ou em paralelo à Fase 2, por decisão do Thallys.

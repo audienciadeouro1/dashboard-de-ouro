@@ -12,6 +12,7 @@ import { processMariaMaria } from "@/lib/csv/maria-maria";
 import { setData } from "@/lib/store";
 import { fetchClientBySlug, ingestCsvRows, ingestExternalWeeklyData, checkSession } from "@/lib/api";
 import { CommercialUploadSection } from "@/components/commercial/CommercialUploadSection";
+import { MetaSyncPanel } from "@/components/dashboard/MetaSyncPanel";
 import { format } from "date-fns";
 
 export const Route = createFileRoute("/upload/$clientSlug")({
@@ -159,6 +160,8 @@ function UploadPage() {
             repetidos são substituídos pela versão mais recente, nunca duplicados.
           </p>
         </div>
+
+        <MetaSyncPanel client={client} />
 
         <div className="space-y-4">
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
