@@ -18,6 +18,8 @@ export interface MetaSyncResult {
 export type FetchInsights = (accountId: string, range: Range) => Promise<MetaInsightRow[]>;
 
 const GRAPH = "https://graph.facebook.com";
+// Versão validada manualmente no Graph API Explorer (2026-07). Sobrescrevível via env.
+const DEFAULT_META_API_VERSION = "v25.0";
 
 function normalizeAccountId(id: string): string {
   return id.startsWith("act_") ? id : `act_${id}`;
@@ -32,7 +34,7 @@ export const fetchMetaInsights: FetchInsights = async (accountId, range) => {
   const env = await getWorkerEnv();
   const token = env.META_ACCESS_TOKEN;
   if (!token) throw new Error("Token da Meta não configurado. Defina META_ACCESS_TOKEN.");
-  const version = env.META_API_VERSION || "v21.0";
+  const version = env.META_API_VERSION || DEFAULT_META_API_VERSION;
   const params = new URLSearchParams({
     level: "ad",
     time_increment: "1",
@@ -65,7 +67,7 @@ export async function testMetaConnection(
   if (!token) throw new Error("Token da Meta não configurado. Defina META_ACCESS_TOKEN.");
   if (!client.metaAdAccountId)
     throw new Error("Configure o ID da conta de anúncios antes de testar.");
-  const version = env.META_API_VERSION || "v21.0";
+  const version = env.META_API_VERSION || DEFAULT_META_API_VERSION;
   const acct = normalizeAccountId(client.metaAdAccountId);
   const res = await fetch(
     `${GRAPH}/${version}/${acct}?fields=name&access_token=${encodeURIComponent(token)}`,

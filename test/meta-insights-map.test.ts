@@ -75,4 +75,40 @@ describe("metaInsightToAdRow", () => {
     expect(row.roas).toBe(0);
     expect(row.campaignName).toBe("");
   });
+
+  it("NÃO soma superfícies do mesmo evento de compra (anti-duplicação)", () => {
+    // A Meta retorna o mesmo evento em várias superfícies; usar só `purchase`.
+    const raw: MetaInsightRow = {
+      ...base,
+      actions: [
+        { action_type: "purchase", value: "23" },
+        { action_type: "omni_purchase", value: "23" },
+        { action_type: "offsite_conversion.fb_pixel_purchase", value: "23" },
+      ],
+      action_values: [
+        { action_type: "purchase", value: "1636.37" },
+        { action_type: "omni_purchase", value: "1636.37" },
+      ],
+    };
+    const row = metaInsightToAdRow(raw, "sales");
+    expect(row.purchases).toBe(23);
+    expect(row.conversionValue).toBe(1636.37);
+  });
+
+  it("mapeia o funil de e-commerce (view_content, add_to_cart, initiate_checkout)", () => {
+    const raw: MetaInsightRow = {
+      ...base,
+      actions: [
+        { action_type: "view_content", value: "153" },
+        { action_type: "add_to_cart", value: "70" },
+        { action_type: "initiate_checkout", value: "44" },
+        { action_type: "purchase", value: "23" },
+      ],
+    };
+    const row = metaInsightToAdRow(raw, "sales");
+    expect(row.viewContent).toBe(153);
+    expect(row.addToCart).toBe(70);
+    expect(row.initiateCheckout).toBe(44);
+    expect(row.purchases).toBe(23);
+  });
 });

@@ -34,21 +34,27 @@ export const META_INSIGHT_FIELDS = [
   "reach",
   "frequency",
   "clicks",
+  "inline_link_clicks",
   "ctr",
   "cpc",
   "cpm",
   "actions",
   "action_values",
+  "purchase_roas",
+  "cost_per_action_type",
 ];
 
-// Tipos de ação que contam como Compra (pixel padrão do Aki Sushi).
-export const PURCHASE_ACTIONS = [
-  "purchase",
-  "omni_purchase",
-  "offsite_conversion.fb_pixel_purchase",
-];
-// Conversa iniciada por mensagem (WhatsApp — Maria Maria).
-export const WHATSAPP_CONVERSATION_ACTION = "onsite_conversion.messaging_conversation_started_7d";
+// FONTE CANÔNICA ÚNICA por métrica. A Meta retorna o MESMO evento em várias
+// superfícies (ex.: purchase, omni_purchase, offsite_conversion.fb_pixel_purchase);
+// SOMAR duplicaria. Usar sempre um único action_type por métrica.
+export const CANONICAL_ACTIONS = {
+  purchase: "purchase",
+  viewContent: "view_content",
+  addToCart: "add_to_cart",
+  initiateCheckout: "initiate_checkout",
+  // Conversa iniciada por mensagem (WhatsApp — Maria Maria).
+  conversation: "onsite_conversion.messaging_conversation_started_7d",
+} as const;
 
 export function resultKindForProfile(profile: DashboardProfile): "purchases" | "conversations" {
   return profile === "leads" || profile === "maria-maria" ? "conversations" : "purchases";
@@ -66,9 +72,13 @@ export function sumActions(list: MetaAction[] | undefined, types: string[]): num
 
 export function metaInsightToAdRow(raw: MetaInsightRow, profile: DashboardProfile): AdRow {
   const spend = num(raw.spend);
-  const purchases = sumActions(raw.actions, PURCHASE_ACTIONS);
-  const conversionValue = sumActions(raw.action_values, PURCHASE_ACTIONS);
-  const conversations = sumActions(raw.actions, [WHATSAPP_CONVERSATION_ACTION]);
+  // Fonte canônica única (nunca somar superfícies do mesmo evento).
+  const purchases = sumActions(raw.actions, [CANONICAL_ACTIONS.purchase]);
+  const conversionValue = sumActions(raw.action_values, [CANONICAL_ACTIONS.purchase]);
+  const conversations = sumActions(raw.actions, [CANONICAL_ACTIONS.conversation]);
+  const viewContent = sumActions(raw.actions, [CANONICAL_ACTIONS.viewContent]);
+  const addToCart = sumActions(raw.actions, [CANONICAL_ACTIONS.addToCart]);
+  const initiateCheckout = sumActions(raw.actions, [CANONICAL_ACTIONS.initiateCheckout]);
   const kind = resultKindForProfile(profile);
   const results = kind === "conversations" ? conversations : purchases;
 
@@ -119,9 +129,9 @@ export function metaInsightToAdRow(raw: MetaInsightRow, profile: DashboardProfil
     reactions: 0,
     comments: 0,
     shares: 0,
-    viewContent: 0,
-    addToCart: 0,
-    initiateCheckout: 0,
+    viewContent,
+    addToCart,
+    initiateCheckout,
     ctrTodos: 0,
     rawData,
   };
