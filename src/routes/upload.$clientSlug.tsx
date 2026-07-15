@@ -12,6 +12,7 @@ import { processMariaMaria } from "@/lib/csv/maria-maria";
 import { setData } from "@/lib/store";
 import { fetchClientBySlug, ingestCsvRows, ingestExternalWeeklyData, checkSession } from "@/lib/api";
 import { CommercialUploadSection } from "@/components/commercial/CommercialUploadSection";
+import { SalonCsvUploadSection } from "@/components/upload/SalonCsvUploadSection";
 import { MetaSyncPanel } from "@/components/dashboard/MetaSyncPanel";
 import { format } from "date-fns";
 
@@ -212,6 +213,8 @@ function UploadPage() {
           {loading ? "Processando..." : "Salvar e abrir dashboard"}
           <ArrowRight className="w-4 h-4" />
         </Button>
+
+        {isMariaMaria && <SalonCsvUploadSection clientId={client.id} />}
 
         <CommercialUploadSection
           clientId={client.id}

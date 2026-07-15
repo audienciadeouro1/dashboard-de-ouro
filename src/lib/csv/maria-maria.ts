@@ -194,7 +194,7 @@ export async function processMariaMaria(
   });
 }
 
-function parseSemana(text: string, year: number): { start: number; end: number } | null {
+export function parseSemana(text: string, year: number): { start: number; end: number } | null {
   // Formato esperado: "19/04 a 25/04"
   const parts = text.split(/ a | /i).filter((p) => p.includes("/"));
   if (parts.length < 2) return null;
