@@ -108,6 +108,16 @@ export function OverviewTab({
     }));
   }, [dataset?.mariaMaria, filteredWeeks]);
 
+  // Dados efetivamente plotados: a comparação Maria Maria usa a série do salão
+  // (existe mesmo sem dados do Meta no período); as demais métricas usam a série
+  // do Meta. O gráfico aparece sempre que ESTA série tiver pontos — não depende
+  // mais do `hasDate` (flag exclusiva do Meta), que escondia o faturamento do salão.
+  const chartData = useMemo(
+    () =>
+      chartMetric === "comparison" && dataset?.mariaMaria ? businessSeries : series,
+    [chartMetric, dataset?.mariaMaria, businessSeries, series],
+  );
+
   const mmConsolidated = useMemo(() => {
     if (filteredWeeks.length === 0) return null;
     return filteredWeeks.reduce(
@@ -232,7 +242,7 @@ export function OverviewTab({
           <h2 className="text-xs uppercase tracking-[0.2em] text-[#10B981] font-bold flex items-center gap-2">
             <ShieldCheck className="w-4 h-4" /> Auditoria de Rastreamento (Underreporting)
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <KpiCard
               label="Leads Rastreados (Meta)"
               value={fmtNum(mmConsolidated.conversations)}
@@ -244,9 +254,22 @@ export function OverviewTab({
                 value={`+${fmtNum(Math.max(0, mmConsolidated.contatos - mmConsolidated.conversations))}`}
                 icon={<AlertTriangle className="w-4 h-4" />}
                 highlight
+                hint="Contatos que o salão registrou além do que a Meta rastreou"
               />
               <div className="absolute -top-3 -right-2 bg-[#10B981] text-black text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shadow-lg rotate-12 z-10">
                 Oculto da Meta
+              </div>
+            </div>
+            <div className="relative group">
+              <KpiCard
+                label="Não Registrados pelo Salão"
+                value={fmtNum(Math.max(0, mmConsolidated.conversations - mmConsolidated.contatos))}
+                icon={<AlertTriangle className="w-4 h-4" />}
+                highlight
+                hint="Leads que a Meta rastreou mas o salão não registrou no balcão"
+              />
+              <div className="absolute -top-3 -right-2 bg-[#F59E0B] text-black text-[10px] uppercase font-bold px-2 py-0.5 rounded-full shadow-lg rotate-12 z-10">
+                Meta &gt; Salão
               </div>
             </div>
             <KpiCard
@@ -338,15 +361,9 @@ export function OverviewTab({
               </SelectContent>
             </Select>
           </div>
-          {hasDate && (series.length > 0 || businessSeries.length > 0) ? (
+          {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart
-                data={
-                  chartMetric === "comparison" && dataset?.mariaMaria
-                    ? businessSeries
-                    : series
-                }
-              >
+              <ComposedChart data={chartData}>
                 <defs>
                   <linearGradient id="investFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor={COLOR_INVEST} stopOpacity={0.3} />
@@ -408,15 +425,7 @@ export function OverviewTab({
                   stroke={GOLD}
                   fill="oklch(0.16 0 0)"
                   travellerWidth={10}
-                  startIndex={
-                    chartMetric === "comparison" && dataset?.mariaMaria
-                      ? businessSeries.length > 30
-                        ? businessSeries.length - 30
-                        : 0
-                      : series.length > 30
-                        ? series.length - 30
-                        : 0
-                  }
+                  startIndex={chartData.length > 30 ? chartData.length - 30 : 0}
                   tickFormatter={(v) => v.split("/").slice(0, 2).join("/")}
                 />
               </ComposedChart>
